@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AurumSynapse — Phase 1 Report (M5, 1 month)</title>
+  <style>
+    :root { --bg:#0f1419; --card:#1a2332; --text:#e6edf3; --muted:#8b9cb3; --accent:#c9a227; --ok:#3fb950; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.5; padding:2rem 1rem; }
+    .wrap { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; color: var(--accent); }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .banner { background: #1f2d22; border: 1px solid #2d4a36; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; font-size: 0.88rem; color: #b5d4be; }
+    section { background: var(--card); border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; border: 1px solid #2d3a4d; }
+    h2 { font-size: 1rem; margin: 0 0 0.75rem; color: #9ab8d9; text-transform: uppercase; letter-spacing: 0.04em; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid #2d3a4d; }
+    th { color: var(--muted); font-weight: 600; width: 42%; }
+    tr:last-child th, tr:last-child td { border-bottom: none; }
+    .metric { font-variant-numeric: tabular-nums; }
+    footer { margin-top: 1.5rem; font-size: 0.8rem; color: var(--muted); }
+    code { background: #0d1117; padding: 0.1em 0.35em; border-radius: 4px; font-size: 0.85em; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AurumSynapse — Phase 1 backtest summary</h1>
+    <p class="sub">Report ID: <span class="metric">RPT_Phase1_M5_1month</span> · Profile: ultra-permissive (functionality validation)</p>
+
+    <div class="banner">
+      <strong>Note:</strong> This file is a <em>project-archived HTML summary</em> of figures taken from the MT5 Strategy Tester
+      (<strong>Backtest</strong> tab / journal) for the successful Phase 1 run. You may replace it anytime with MT5&rsquo;s native
+      <strong>Report → Save as report</strong> export for identical styling to the terminal.
+    </div>
+
+    <section>
+      <h2>Test configuration</h2>
+      <table>
+        <tr><th>Expert</th><td>AurumSynapse</td></tr>
+        <tr><th>Symbol</th><td>XAUUSD</td></tr>
+        <tr><th>Timeframe</th><td>M5</td></tr>
+        <tr><th>Period</th><td class="metric">2025-01-01 — 2025-01-31</td></tr>
+        <tr><th>Model</th><td>Every tick based on real ticks</td></tr>
+        <tr><th>Deposit / leverage</th><td class="metric">10&nbsp;000 USD · 1:500</td></tr>
+        <tr><th>Phase</th><td>Phase 1 — basic functionality</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Key inputs (ultra-permissive)</h2>
+      <table>
+        <tr><th><code>InpMinQualityScore</code></th><td class="metric">30</td></tr>
+        <tr><th><code>InpMinConsensus</code></th><td class="metric">1</td></tr>
+        <tr><th><code>InpRequireTrendAlignment</code></th><td>false</td></tr>
+        <tr><th><code>InpRequireKeyLevel</code> / <code>InpRequireMomentum</code></th><td>false / false</td></tr>
+        <tr><th><code>InpShowPanel</code></th><td>false (required for tester)</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Results (MT5 Backtest tab)</h2>
+      <table>
+        <tr><th>Total trades</th><td class="metric"><strong>15</strong></td></tr>
+        <tr><th>Wins / losses (approx.)</th><td class="metric">5 / 10</td></tr>
+        <tr><th>Win rate (approx.)</th><td class="metric">~33%</td></tr>
+        <tr><th>Net profit (approx.)</th><td class="metric">~−158.84 USD</td></tr>
+        <tr><th>Profit factor (approx.)</th><td class="metric">~0.66</td></tr>
+        <tr><th>Stability</th><td><span class="metric" style="color:var(--ok)">No stack overflow on final run</span>; Logger <code>CheckDateChange</code> recursion fixed</td></tr>
+        <tr><th>OnTester</th><td>0 acceptable if <code>OnTester()</code> not implemented</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>Verdict</h2>
+      <p style="margin:0;"><strong>Phase 1 — PASS</strong> (functionality): ≥10 trades, no critical tester failure on the archived run.
+      Performance metrics above are <em>not</em> targets; Phase 2 calibrates <code>InpMinQualityScore</code> and related filters.</p>
+    </section>
+
+    <footer>
+      Saved to repo: 2026-05-08 · Source: Strategy Tester session (May 2026) · Path: <code>Tests/PerformanceReports/RPT_Phase1_M5_1month.html</code>
+    </footer>
+  </div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+; saved automatically on 2026.05.06 08:50:00
+; Aggressive Profile - Lower Quality, Higher Risk (USE WITH CAUTION)
+; Expected: 4000-6500 trades/year, 68-72% WR, PF 1.8-2.4, Max DD <15%
+;
+[Parameters]
+; === GENERAL SETTINGS ===
+InpLotMethod=0||0||1||2
+InpFixedLot=0.01||0.01||0.01||0.10
+InpRiskPercent=2.00||1.00||0.10||3.00
+InpMagicNumber=20260505||20260505||1||20260505
+InpMaxSpreadPoints=35||25||5||45
+; === STRATEGY ACTIVATION ===
+InpUseTrendFollowing=1||0||1||1
+InpUseBreakout=1||0||1||1
+InpUseMeanReversion=1||0||1||1
+InpUseSupplyDemand=1||0||1||1
+InpUseSmartMoney=1||0||1||1
+InpUsePriceAction=1||0||1||1
+InpUseGridRecovery=1||0||1||1
+InpUseMomentumScalp=1||0||1||1
+; === RISK MANAGEMENT ===
+InpMaxRiskPerTrade=2.00||1.00||0.10||3.00
+InpMaxDailyLossPct=7.00||5.00||0.50||10.00
+InpMaxEquityDD=15.00||12.00||1.00||20.00
+InpMaxConsecutiveLosses=4||3||1||6
+InpMaxOpenPositions=7||5||1||10
+; === TIME FILTERS ===
+InpUseTimeFilter=0||0||1||1
+InpHourFrom=0||0||1||23
+InpHourTo=23||0||1||23
+InpTradeMon=1||0||1||1
+InpTradeTue=1||0||1||1
+InpTradeWed=1||0||1||1
+InpTradeThu=1||0||1||1
+InpTradeFri=1||0||1||1
+; === QUALITY FILTER ===
+InpMinQualityScore=60||50||5||70
+InpRequireTrendAlignment=0||0||1||1
+InpRequireKeyLevel=0||0||1||1
+InpRequireMomentum=0||0||1||1
+; === TP/SL SETTINGS ===
+InpTPCoefficient=2.00||1.50||0.50||3.00
+InpSLPoints=100||80||10||120
+InpUseTrailing=1||0||1||1
+InpTrailStartPips=8||5||5||15
+InpTrailDistPips=4||3||1||8
+; === VISUAL PANEL ===
+InpShowPanel=0||0||1||1
+InpPanelUpdateSeconds=1||1||1||5

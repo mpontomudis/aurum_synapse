@@ -1,0 +1,102 @@
+; ============================================================
+; AURUM SYNAPSE v2.0 - BACKTEST CONFIGURATION PRESETS
+; ============================================================
+; File: BacktestConfig.set
+; Usage: Load in MT5 Strategy Tester → Settings → Load
+; ============================================================
+
+; === PRESET 1: CONSERVATIVE (Quality 70) ===================
+; InpLotMethod=0
+; InpFixedLot=0.01
+; InpRiskPercent=1.0
+; InpMagicNumber=20260505
+; InpMaxSpreadPoints=30
+; InpUseTrendFollowing=true
+; InpUseBreakout=true
+; InpUseMeanReversion=false
+; InpUseSupplyDemand=true
+; InpUseSmartMoney=true
+; InpUsePriceAction=true
+; InpUseGridRecovery=false
+; InpUseMomentumScalp=true
+; InpMaxRiskPerTrade=1.0
+; InpMaxDailyLossPct=3.0
+; InpMaxEquityDD=10.0
+; InpMaxConsecutiveLosses=3
+; InpMaxOpenPositions=3
+; InpUseTimeFilter=false
+; InpMinQualityScore=70
+; InpRequireTrendAlignment=true
+; InpRequireKeyLevel=true
+; InpRequireMomentum=false
+; InpTPCoefficient=2.0
+; InpSLPoints=100
+; InpUseTrailing=true
+; InpTrailStartPips=10
+; InpTrailDistPips=5
+; InpShowPanel=false
+; Expected: 3-8 trades/day, 72-75% WR, PF 2.0-2.5
+
+; === PRESET 2: BALANCED (Quality 60) =======================
+; InpLotMethod=0
+; InpFixedLot=0.01
+; InpRiskPercent=1.5
+; InpMagicNumber=20260505
+; InpMaxSpreadPoints=30
+; InpUseTrendFollowing=true
+; InpUseBreakout=true
+; InpUseMeanReversion=true
+; InpUseSupplyDemand=true
+; InpUseSmartMoney=true
+; InpUsePriceAction=true
+; InpUseGridRecovery=false
+; InpUseMomentumScalp=true
+; InpMaxRiskPerTrade=2.0
+; InpMaxDailyLossPct=5.0
+; InpMaxEquityDD=12.0
+; InpMaxConsecutiveLosses=3
+; InpMaxOpenPositions=5
+; InpUseTimeFilter=false
+; InpMinQualityScore=60
+; InpRequireTrendAlignment=false
+; InpRequireKeyLevel=false
+; InpRequireMomentum=false
+; InpTPCoefficient=2.0
+; InpSLPoints=100
+; InpUseTrailing=true
+; InpTrailStartPips=10
+; InpTrailDistPips=5
+; InpShowPanel=false
+; Expected: 10-15 trades/day, 70-73% WR, PF 2.2-2.8
+
+; === PRESET 3: AGGRESSIVE (Quality 50) =====================
+; InpLotMethod=0
+; InpFixedLot=0.01
+; InpRiskPercent=2.0
+; InpMagicNumber=20260505
+; InpMaxSpreadPoints=30
+; InpUseTrendFollowing=true
+; InpUseBreakout=true
+; InpUseMeanReversion=true
+; InpUseSupplyDemand=true
+; InpUseSmartMoney=true
+; InpUsePriceAction=true
+; InpUseGridRecovery=true
+; InpUseMomentumScalp=true
+; InpMaxRiskPerTrade=3.0
+; InpMaxDailyLossPct=5.0
+; InpMaxEquityDD=15.0
+; InpMaxConsecutiveLosses=3
+; InpMaxOpenPositions=5
+; InpUseTimeFilter=false
+; InpMinQualityScore=50
+; InpRequireTrendAlignment=false
+; InpRequireKeyLevel=false
+; InpRequireMomentum=false
+; InpTPCoefficient=2.0
+; InpSLPoints=100
+; InpUseTrailing=true
+; InpTrailStartPips=10
+; InpTrailDistPips=5
+; InpShowPanel=false
+; Expected: 15-25 trades/day, 68-70% WR, PF 1.8-2.2

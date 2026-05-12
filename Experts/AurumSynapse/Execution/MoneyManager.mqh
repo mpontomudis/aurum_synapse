@@ -46,16 +46,13 @@ private:
     double           m_maxLot;
     double           m_lotStep;
     
-    //--- Risk parameters
+    //--- Risk parameters (legacy cache; primary sizing comes from CalculateLotSize arguments)
     ENUM_LOT_METHOD  m_lotMethod;
     double           m_fixedLot;
     double           m_riskPercent;
-    double           m_fixedLotPerBalance;
-    double           m_balanceIncrement;
     
     //--- Helper methods
     double CalculateLotByRisk(double slDistancePoints, double riskPercent);
-    double CalculateLotByBalance(double balance);
     
 public:
     //--- Constructor / Destructor
@@ -69,9 +66,13 @@ public:
     double           CalculateLotSize(ENUM_LOT_METHOD method,
                                       double riskLevel,
                                       double fixedLot,
-                                      double fixedPerBalance,
+                                      double balanceStep,
+                                      double baseLotPerStep,
                                       double maxRiskPct,
                                       double slDistancePoints = 0);
+    
+    //--- Pure formula: floor(balance / balanceStep) * baseLotPerStep (no broker normalize)
+    double           ComputeFixedPerBalanceLot(double balance, double balanceStep, double baseLotPerStep);
     
     //--- Lot normalization
     double           NormalizeLot(double lot);
@@ -98,8 +99,6 @@ MoneyManager::MoneyManager(void) :
     m_lotMethod(LOT_FIXED),
     m_fixedLot(0.01),
     m_riskPercent(1.0),
-    m_fixedLotPerBalance(0.01),
-    m_balanceIncrement(1000.0),
     m_pointValue(0),
     m_tickSize(0),
     m_tickValue(0),
@@ -148,16 +147,27 @@ bool MoneyManager::Init(string symbol) {
 }
 
 //+------------------------------------------------------------------+
+//| Pure formula: floor(balance / step) * base (no broker normalize) |
+//+------------------------------------------------------------------+
+double MoneyManager::ComputeFixedPerBalanceLot(double balance, double balanceStep, double baseLotPerStep) {
+    if(balanceStep <= 0.0 || baseLotPerStep <= 0.0)
+        return 0.0;
+    return MathFloor(balance / balanceStep) * baseLotPerStep;
+}
+
+//+------------------------------------------------------------------+
 //| Calculate lot size using specified method                        |
 //+------------------------------------------------------------------+
 double MoneyManager::CalculateLotSize(ENUM_LOT_METHOD method,
                                        double riskLevel,
                                        double fixedLot,
-                                       double fixedPerBalance,
+                                       double balanceStep,
+                                       double baseLotPerStep,
                                        double maxRiskPct,
-                                       double slDistancePoints = 0) {
+                                       double slDistancePoints) {
     double lot = 0;
     double balance = AccountInfoDouble(ACCOUNT_BALANCE);
+    double fpbc_calculated = 0.0;
     
     switch(method) {
         case LOT_FIXED:
@@ -175,24 +185,57 @@ double MoneyManager::CalculateLotSize(ENUM_LOT_METHOD method,
             }
             break;
             
-        case LOT_FIXED_PER_BALANCE:
-            //--- Fixed lot per $X balance
-            lot = CalculateLotByBalance(balance);
+        case LOT_FIXED_PER_BALANCE: {
+            //--- Pure linear path only: floor(balance/step)*baseLotPerStep — no risk %, SL, ATR, recovery, or LOT_SIZE_MAX_BASE
+            fpbc_calculated = ComputeFixedPerBalanceLot(balance, balanceStep, baseLotPerStep);
+            lot = fpbc_calculated;
             break;
+        }
             
         default:
             lot = LOT_SIZE_BASE;
             break;
     }
     
-    //--- Apply maximum risk constraint
+    //--- LOT_FIXED_PER_BALANCE: isolated path — must NOT pass through LOT_AUTO risk caps or LOT_SIZE_MAX_BASE
+    if(method == LOT_FIXED_PER_BALANCE) {
+        double rawCalculatedLot         = fpbc_calculated;
+        double finalLotBeforeBrokerNorm = rawCalculatedLot; // no EA-side scaling after formula
+        double finalLotAfterBrokerNorm  = NormalizeLot(finalLotBeforeBrokerNorm);
+        
+        Print("[FPB_DIAG] InpLotMethod=", IntegerToString((int)method), " (", EnumToString(method), ")",
+              " | AccountBalance=", DoubleToString(balance, 2),
+              " | BalanceStep=", DoubleToString(balanceStep, 2),
+              " | BaseLotPerStep=", DoubleToString(baseLotPerStep, 4),
+              " | RawCalculatedLot=", DoubleToString(rawCalculatedLot, 4),
+              " | FinalLotBeforeBrokerNorm=", DoubleToString(finalLotBeforeBrokerNorm, 4),
+              " | FinalLotAfterBrokerNorm=", DoubleToString(finalLotAfterBrokerNorm, 4));
+        
+        return finalLotAfterBrokerNorm;
+    }
+    
+    //--- Apply maximum risk constraint (LOT_AUTO only)
     if(method == LOT_AUTO && maxRiskPct > 0 && slDistancePoints > 0) {
         double maxLotByRisk = CalculateLotByRisk(slDistancePoints, maxRiskPct);
         lot = MathMin(lot, maxLotByRisk);
     }
     
-    //--- Normalize and validate
+    //--- EA scalper ceiling (LOT_AUTO only)
+    if(method == LOT_AUTO)
+        lot = MathMin(lot, LOT_SIZE_MAX_BASE);
+    
+    double lot_pre_broker_norm = lot;
+    //--- Normalize and validate (broker min / max / step)
     lot = NormalizeLot(lot);
+    
+    Print("[MoneyManager::CalculateLotSize] method=", EnumToString(method),
+          " fixedLotInp=", DoubleToString(fixedLot, 4),
+          " preBrokerNorm=", DoubleToString(lot_pre_broker_norm, 4),
+          " finalLot=", DoubleToString(lot, 4),
+          " brokerMin=", DoubleToString(m_minLot, 4),
+          " brokerMax=", DoubleToString(m_maxLot, 4),
+          " step=", DoubleToString(m_lotStep, 4),
+          " LOT_AUTO_cap=", DoubleToString(LOT_SIZE_MAX_BASE, 4));
     
     return lot;
 }
@@ -219,23 +262,6 @@ double MoneyManager::CalculateLotByRisk(double slDistancePoints, double riskPerc
 }
 
 //+------------------------------------------------------------------+
-//| Calculate lot size based on balance increment                    |
-//+------------------------------------------------------------------+
-double MoneyManager::CalculateLotByBalance(double balance) {
-    //--- Example: 0.01 lot per $1000 balance
-    double increment = 1000.0;  // $1000 per 0.01 lot
-    double baseLot = 0.01;
-    
-    double multiplier = MathFloor(balance / increment);
-    double lot = baseLot * MathMax(1, multiplier);
-    
-    //--- Cap at maximum base lot
-    lot = MathMin(lot, LOT_SIZE_MAX_BASE);
-    
-    return lot;
-}
-
-//+------------------------------------------------------------------+
 //| Normalize lot size to broker requirements                        |
 //+------------------------------------------------------------------+
 double MoneyManager::NormalizeLot(double lot) {
@@ -244,10 +270,9 @@ double MoneyManager::NormalizeLot(double lot) {
         lot = MathFloor(lot / m_lotStep) * m_lotStep;
     }
     
-    //--- Apply min/max limits
+    //--- Apply min/max limits (broker + symbol contract only)
     lot = MathMax(lot, m_minLot);
     lot = MathMin(lot, m_maxLot);
-    lot = MathMin(lot, LOT_SIZE_MAX_BASE);  // Also apply EA's max base lot
     
     //--- Round to 2 decimals
     lot = NormalizeDouble(lot, 2);

@@ -149,8 +149,19 @@ ENUM_SIGNAL SignalManager::GetConsensusSignal(SignalResult &signals[], int count
     //    This allows ultra-permissive testing (1 strategy) or strict consensus (3+)
     int requiredVotes = (int)MathMin(m_minConsensus, MathMax(1, m_totalActive * 0.4));
     
+    //--- Dominance vs opposite side (5% cushion). Single-strategy isolation: opposite score is
+    //    exactly 0 — strict `score > 0 * 1.05` is fragile with float dust; treat as clear BUY/SELL win.
+    const double oppEps = 1e-8;
+    bool buyDominates = (m_buyScore > m_sellScore * 1.05 + oppEps);
+    if(m_buyCount >= requiredVotes && m_totalActive == 1 && m_sellCount == 0 && m_buyScore > oppEps)
+        buyDominates = true;
+    
+    bool sellDominates = (m_sellScore > m_buyScore * 1.05 + oppEps);
+    if(m_sellCount >= requiredVotes && m_totalActive == 1 && m_buyCount == 0 && m_sellScore > oppEps)
+        sellDominates = true;
+    
     //--- Check BUY consensus with 5% dominance requirement
-    if(m_buyCount >= requiredVotes && m_buyScore > m_sellScore * 1.05) {
+    if(m_buyCount >= requiredVotes && buyDominates) {
         m_consensusSignal = SIGNAL_BUY;
         m_consensusStrength = m_buyScore;
         m_agreementPct = (double)m_buyCount / m_totalActive * 100.0;
@@ -158,7 +169,7 @@ ENUM_SIGNAL SignalManager::GetConsensusSignal(SignalResult &signals[], int count
     }
     
     //--- Check SELL consensus with 5% dominance requirement
-    if(m_sellCount >= requiredVotes && m_sellScore > m_buyScore * 1.05) {
+    if(m_sellCount >= requiredVotes && sellDominates) {
         m_consensusSignal = SIGNAL_SELL;
         m_consensusStrength = m_sellScore;
         m_agreementPct = (double)m_sellCount / m_totalActive * 100.0;

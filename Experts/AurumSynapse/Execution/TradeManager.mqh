@@ -12,6 +12,7 @@
 
 #include "../Core/Constants.mqh"
 #include "../Core/Structures.mqh"
+#include "../Core/TradeDiag.mqh"
 #include <Trade\Trade.mqh>
 
 //+------------------------------------------------------------------+
@@ -67,8 +68,8 @@ public:
     bool             Init(string symbol, int magicNumber);
     
     //--- Order execution
-    ulong            OpenBuy(double lot, double sl, double tp, int qualityScore, string comment = "");
-    ulong            OpenSell(double lot, double sl, double tp, int qualityScore, string comment = "");
+    ulong            OpenBuy(double lot, double sl, double tp, int qualityScore, string comment = "", double requestedLotForDiag = -1.0);
+    ulong            OpenSell(double lot, double sl, double tp, int qualityScore, string comment = "", double requestedLotForDiag = -1.0);
     bool             ClosePosition(ulong ticket);
     bool             CloseAllPositions();
     
@@ -126,6 +127,7 @@ bool TradeManager::Init(string symbol, int magicNumber) {
     //--- Validate symbol
     if(!SymbolSelect(symbol, true)) {
         Print("ERROR: Failed to select symbol ", symbol);
+        TradeDiag_Blocked("SymbolSelectFailed", symbol, 0.0, -1);
         return false;
     }
     
@@ -139,13 +141,16 @@ bool TradeManager::Init(string symbol, int magicNumber) {
 //+------------------------------------------------------------------+
 //| Open BUY position with retry logic                               |
 //+------------------------------------------------------------------+
-ulong TradeManager::OpenBuy(double lot, double sl, double tp, int qualityScore, string comment = "") {
+ulong TradeManager::OpenBuy(double lot, double sl, double tp, int qualityScore, string comment, double requestedLotForDiag) {
     double price = SymbolInfoDouble(m_symbol, SYMBOL_ASK);
+    int    openPos = CountOpenPositions();
+    uint   lastRetcode = 0;
     
     //--- Check margin
     double requiredMargin = 0;
     if(!OrderCalcMargin(ORDER_TYPE_BUY, m_symbol, lot, price, requiredMargin)) {
         Print("ERROR: Failed to calculate margin for BUY order");
+        TradeDiag_Blocked("OrderCalcMarginFailed", m_symbol, lot, openPos);
         m_ordersFailed++;
         return 0;
     }
@@ -153,6 +158,7 @@ ulong TradeManager::OpenBuy(double lot, double sl, double tp, int qualityScore, 
     double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
     if(requiredMargin * 1.2 > freeMargin) {
         Print("ERROR: Insufficient margin - Required: ", requiredMargin, " Free: ", freeMargin);
+        TradeDiag_Blocked("FreeMarginTooLow", m_symbol, lot, openPos);
         m_ordersFailed++;
         return 0;
     }
@@ -161,6 +167,19 @@ ulong TradeManager::OpenBuy(double lot, double sl, double tp, int qualityScore, 
     if(comment == "") {
         comment = StringFormat("BUY Q:%d", qualityScore);
     }
+    
+    if(requestedLotForDiag >= 0.0)
+        Print("[LOT_EXEC] RequestedLot=", DoubleToString(requestedLotForDiag, 4),
+              " FinalLot=", DoubleToString(lot, 4),
+              " FreeMargin=", DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2),
+              " SYM_VOL_MAX=", DoubleToString(SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX), 4),
+              " SYM_VOL_STEP=", DoubleToString(SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP), 4),
+              " (pre CTrade::Buy)");
+    else
+        Print("[LOT_EXEC] FinalLot=", DoubleToString(lot, 4),
+              " FreeMargin=", DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2),
+              " SYM_VOL_MAX=", DoubleToString(SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX), 4),
+              " (pre CTrade::Buy)");
     
     //--- Execute with retry logic
     for(int attempt = 1; attempt <= m_maxRetries; attempt++) {
@@ -179,12 +198,13 @@ ulong TradeManager::OpenBuy(double lot, double sl, double tp, int qualityScore, 
         }
         
         //--- Handle error
-        uint retcode = m_trade.ResultRetcode();
-        HandleOrderError(retcode, attempt);
+        lastRetcode = m_trade.ResultRetcode();
+        HandleOrderError(lastRetcode, attempt);
         
         //--- Check if retryable
-        if(!IsRetryableError(retcode) || attempt >= m_maxRetries) {
+        if(!IsRetryableError(lastRetcode) || attempt >= m_maxRetries) {
             m_ordersFailed++;
+            TradeDiag_Blocked(TradeDiag_RetcodeToReason(lastRetcode), m_symbol, lot, openPos);
             return 0;
         }
         
@@ -195,19 +215,23 @@ ulong TradeManager::OpenBuy(double lot, double sl, double tp, int qualityScore, 
     }
     
     m_ordersFailed++;
+    TradeDiag_Blocked(TradeDiag_RetcodeToReason(lastRetcode), m_symbol, lot, openPos);
     return 0;
 }
 
 //+------------------------------------------------------------------+
 //| Open SELL position with retry logic                              |
 //+------------------------------------------------------------------+
-ulong TradeManager::OpenSell(double lot, double sl, double tp, int qualityScore, string comment = "") {
+ulong TradeManager::OpenSell(double lot, double sl, double tp, int qualityScore, string comment, double requestedLotForDiag) {
     double price = SymbolInfoDouble(m_symbol, SYMBOL_BID);
+    int    openPos = CountOpenPositions();
+    uint   lastRetcode = 0;
     
     //--- Check margin
     double requiredMargin = 0;
     if(!OrderCalcMargin(ORDER_TYPE_SELL, m_symbol, lot, price, requiredMargin)) {
         Print("ERROR: Failed to calculate margin for SELL order");
+        TradeDiag_Blocked("OrderCalcMarginFailed", m_symbol, lot, openPos);
         m_ordersFailed++;
         return 0;
     }
@@ -215,6 +239,7 @@ ulong TradeManager::OpenSell(double lot, double sl, double tp, int qualityScore,
     double freeMargin = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
     if(requiredMargin * 1.2 > freeMargin) {
         Print("ERROR: Insufficient margin - Required: ", requiredMargin, " Free: ", freeMargin);
+        TradeDiag_Blocked("FreeMarginTooLow", m_symbol, lot, openPos);
         m_ordersFailed++;
         return 0;
     }
@@ -224,7 +249,19 @@ ulong TradeManager::OpenSell(double lot, double sl, double tp, int qualityScore,
         comment = StringFormat("SELL Q:%d", qualityScore);
     }
     
-    //--- CRITICAL DEBUG: Log exact values before CTrade call
+    if(requestedLotForDiag >= 0.0)
+        Print("[LOT_EXEC] RequestedLot=", DoubleToString(requestedLotForDiag, 4),
+              " FinalLot=", DoubleToString(lot, 4),
+              " FreeMargin=", DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2),
+              " SYM_VOL_MAX=", DoubleToString(SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX), 4),
+              " SYM_VOL_STEP=", DoubleToString(SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_STEP), 4),
+              " (pre CTrade::Sell)");
+    else
+        Print("[LOT_EXEC] FinalLot=", DoubleToString(lot, 4),
+              " FreeMargin=", DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2),
+              " SYM_VOL_MAX=", DoubleToString(SymbolInfoDouble(m_symbol, SYMBOL_VOLUME_MAX), 4),
+              " (pre CTrade::Sell)");
+    
     Print("[TradeManager::OpenSell] About to call CTrade::Sell()");
     Print("  lot: ", lot);
     Print("  symbol: ", m_symbol);
@@ -250,12 +287,13 @@ ulong TradeManager::OpenSell(double lot, double sl, double tp, int qualityScore,
         }
         
         //--- Handle error
-        uint retcode = m_trade.ResultRetcode();
-        HandleOrderError(retcode, attempt);
+        lastRetcode = m_trade.ResultRetcode();
+        HandleOrderError(lastRetcode, attempt);
         
         //--- Check if retryable
-        if(!IsRetryableError(retcode) || attempt >= m_maxRetries) {
+        if(!IsRetryableError(lastRetcode) || attempt >= m_maxRetries) {
             m_ordersFailed++;
+            TradeDiag_Blocked(TradeDiag_RetcodeToReason(lastRetcode), m_symbol, lot, openPos);
             return 0;
         }
         
@@ -266,6 +304,7 @@ ulong TradeManager::OpenSell(double lot, double sl, double tp, int qualityScore,
     }
     
     m_ordersFailed++;
+    TradeDiag_Blocked(TradeDiag_RetcodeToReason(lastRetcode), m_symbol, lot, openPos);
     return 0;
 }
 

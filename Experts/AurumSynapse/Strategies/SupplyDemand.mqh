@@ -41,13 +41,13 @@ struct ZoneInfo {
 //|     - Price within demand zone boundaries                        |
 //|     - Zone is fresh (tested ≤ 2 times)                           |
 //|     - Bullish rejection candle (long lower wick)                 |
-//|     - Volume ≥ ~0.88× average (Phase 3A+; max bar0,bar1 vs avg)   |
+//|     - Volume ≥ ~0.80× average (Phase 3A+ v7; max bar0,bar1 vs avg)   |
 //|                                                                  |
 //|   SELL:                                                          |
 //|     - Price within supply zone boundaries                        |
 //|     - Zone is fresh (tested ≤ 2 times)                           |
-//|     - Bearish rejection candle (long upper wick)                 |
-//|     - Volume ≥ ~0.88× average (Phase 3A+; max bar0,bar1 vs avg)   |
+//|     - Bearish rejection + bearish close bar1 OR bar0 (H2 cont.)    |
+//|     - Volume ≥ ~0.80× average (Phase 3A+ v7; max bar0,bar1 vs avg)   |
 //|                                                                  |
 //| Strength Calculation:                                            |
 //|   Base: 0.5                                                      |
@@ -61,6 +61,10 @@ struct ZoneInfo {
 //| Activation: ANY regime + at least 1 fresh zone nearby            |
 //| Phase 3A+ v6: probe/rejection use bar0 OR bar1 (OnTick=new bar:     |
 //| bar0 incomplete); looser impulse/height; v5 wick+ATR; v4 vol pass.  |
+//| Phase 3A+ v7: SELL bar-1 bearish (bull-tape supply fade).            |
+//| Phase 3B H2 continuity: SELL bar0|bar1 bearish (parity Breakout/MR); |
+//| dead-zone strength penalty only TRENDING/VOLATILE (RANGING/CALM    |
+//| H2 session survivability vs Q60). impulse 0.205; vol 0.80.         |
 //+------------------------------------------------------------------+
 class SupplyDemand : public BaseStrategy {
 private:
@@ -116,11 +120,11 @@ public:
 SupplyDemand::SupplyDemand(void) :
     m_maxZones(5),
     m_lookbackBars(150),
-    m_impulseThreshold(0.22),
+    m_impulseThreshold(0.205),
     m_maxTouches(2),
     m_zoneProximity(4.2),
     m_minZoneHeight(0.02),
-    m_volumeMultiplier(0.82),
+    m_volumeMultiplier(0.80),
     m_supplyCount(0),
     m_demandCount(0)
 {
@@ -156,7 +160,7 @@ void SupplyDemand::Init(IndicatorCache* cache, double baseWeight, string symbol,
     regimes[3] = REGIME_CALM;
     SetActiveRegimes(regimes, 4);
     
-    Print("SupplyDemand initialized - ALL regimes; Phase 3A+ v6 (bar0|1 probe+rejection, looser zones)");
+    Print("SupplyDemand initialized - ALL regimes; Phase 3B H2 cont. (SELL bearish bar0|1; deadZone str×0.7 T/V only; v7 base)");
 }
 
 //+------------------------------------------------------------------+
@@ -190,6 +194,9 @@ double SupplyDemand::GetAtrForZones(void) {
 //| Check if strategy should be active                               |
 //+------------------------------------------------------------------+
 bool SupplyDemand::CheckActivation(const MarketState &state) {
+    if(!IsActiveInCurrentRegime(state))
+        return false;
+    
     // Detect/update zones
     DetectZones();
     
@@ -268,10 +275,10 @@ void SupplyDemand::CalculateSignal(const MarketState &state) {
         }
     }
     
-    // Check for supply zone entry (SELL signal)
+    // Check for supply zone entry (SELL) — v7: bar-1 bearish close filters weak supply fades in bull tape
     if(IsInSupplyZone(currentPrice, zoneIndex)) {
         if(zoneIndex >= 0 && m_supplyZones[zoneIndex].touchCount <= m_maxTouches) {
-            if(IsBearishRejection()) {
+            if(IsBearishRejection() && (IsBearishCandle(1) || IsBearishCandle(0))) {
                 // Check volume confirmation
                 double avgVolume = GetAverageVolume(20);
                 double currentVolume = MathMax(GetVolume(0), GetVolume(1));
@@ -565,20 +572,29 @@ double SupplyDemand::CalculateStrength(const MarketState &state, ENUM_SIGNAL dir
         strength += 0.15;
     }
     
-    //--- Bonus 2: Strong rejection candle (already confirmed) adds 0.15
-    double open = GetOpen(0);
-    double close = GetClose(0);
-    double high = GetHigh(0);
-    double low = GetLow(0);
-    double body = MathAbs(close - open);
-    
+    //--- Bonus 2: Strong rejection candle — max(bar0,bar1) wick vs body (parity with entry probe)
+    double pt = SymbolInfoDouble(m_symbol, SYMBOL_POINT);
     bool strongRejection = false;
     if(direction == SIGNAL_BUY) {
-        double lowerWick = MathMin(open, close) - low;
-        strongRejection = (lowerWick > body * 3.0);  // Very strong wick
+        double best = 0.0;
+        for(int sh = 0; sh <= 1; sh++) {
+            double o = GetOpen(sh), c = GetClose(sh), l = GetLow(sh);
+            double body = MathAbs(c - o);
+            if(body < pt) body = pt;
+            double lowerWick = MathMin(o, c) - l;
+            best = MathMax(best, lowerWick / body);
+        }
+        strongRejection = (best > 3.0);
     } else {
-        double upperWick = high - MathMax(open, close);
-        strongRejection = (upperWick > body * 3.0);
+        double best = 0.0;
+        for(int sh = 0; sh <= 1; sh++) {
+            double o = GetOpen(sh), c = GetClose(sh), h = GetHigh(sh);
+            double body = MathAbs(c - o);
+            if(body < pt) body = pt;
+            double upperWick = h - MathMax(o, c);
+            best = MathMax(best, upperWick / body);
+        }
+        strongRejection = (best > 3.0);
     }
     
     if(strongRejection) {
@@ -616,8 +632,10 @@ double SupplyDemand::CalculateStrength(const MarketState &state, ENUM_SIGNAL dir
         strength += 0.05;
     }
     
-    //--- Penalty: Dead zone reduces strength
-    if(IsDeadZone(state)) {
+    //--- Penalty: Dead zone reduces strength — Phase 3B H2: only TRENDING/VOLATILE
+    //    (zone strategy is regime-agnostic; RANGING/CALM H2 should not session-starve Q60)
+    if(IsDeadZone(state) &&
+       (state.regime == REGIME_TRENDING || state.regime == REGIME_VOLATILE)) {
         strength *= 0.7;
     }
     

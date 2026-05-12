@@ -99,11 +99,12 @@ enum ENUM_SIGNAL_REJECT_REASON {
     SIGNAL_REJECT_MARKET_UPDATE_FAIL   = 11
 };
 
-// Lot sizing methods
+// Lot sizing methods (MT5 Inputs list order: Automatic, Fixed, Fixed per Balance)
+// NOTE: numeric values changed vs older builds — re-save .set: 0=Automatic, 1=Fixed, 2=Fixed per Balance
 enum ENUM_LOT_METHOD {
-    LOT_FIXED              = 0,   // Fixed lot size
-    LOT_AUTO               = 1,   // Auto lot based on risk %
-    LOT_FIXED_PER_BALANCE  = 2    // Fixed lot per $X balance
+    LOT_AUTO               = 0,   // Automatic
+    LOT_FIXED              = 1,   // Fixed
+    LOT_FIXED_PER_BALANCE  = 2   // Fixed per Balance
 };
 
 //+------------------------------------------------------------------+
@@ -173,7 +174,7 @@ enum ENUM_LOT_METHOD {
 // Lot sizing
 #define LOT_SIZE_MIN                 0.01 // Minimum lot size
 #define LOT_SIZE_BASE                0.01 // Base lot for scalping
-#define LOT_SIZE_MAX_BASE            0.03 // Maximum base lot
+#define LOT_SIZE_MAX_BASE            0.03 // Scalper ceiling for LOT_AUTO only (not LOT_FIXED / LOT_FIXED_PER_BALANCE)
 #define LOT_SIZE_STEP                0.01 // Lot size increment
 
 //+------------------------------------------------------------------+

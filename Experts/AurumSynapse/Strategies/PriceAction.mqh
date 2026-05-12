@@ -50,7 +50,8 @@
 //| Activation: Phase 3A pattern-only; Phase 3B always evaluate       |
 //| CalculateSignal (classic patterns too rare on M5 XAU FY).        |
 //| Phase 3A++ v4: avgVolume<=0 pass; soft PA bar0|1; BB mid fallback   |
-//| in IsNearKeyLevel when edges unset; Init banner for compile verify. |
+//| in IsNearKeyLevel when edges unset. Phase 3B H2 (May 2026): dead-   |
+//| zone penalty T/V only; softer vol/key/RSI/wick for R/C + H2 tape.   |
 //+------------------------------------------------------------------+
 class PriceAction : public BaseStrategy {
 private:
@@ -102,8 +103,8 @@ public:
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
 PriceAction::PriceAction(void) :
-    m_keyLevelProximity(180.0),
-    m_volumeMultiplier(0.55),
+    m_keyLevelProximity(210.0),
+    m_volumeMultiplier(0.50),
     m_pinBarBullish(false),
     m_pinBarBearish(false),
     m_engulfingBullish(false),
@@ -141,7 +142,7 @@ void PriceAction::Init(IndicatorCache* cache, double baseWeight, string symbol, 
     regimes[3] = REGIME_CALM;
     SetActiveRegimes(regimes, 4);
     
-    Print("PriceAction initialized - ALL regimes; Phase 3A++ v4 (vol0 pass, key mid fallback, PA bar0|1)");
+    Print("PriceAction initialized - ALL regimes; Phase 3A++ v4 + Phase 3B H2 (deadzone T/V, vol50 prox210, RSI72/28, wick1.08, BB mid 13xATR)");
 }
 
 //+------------------------------------------------------------------+
@@ -184,7 +185,8 @@ void PriceAction::CalculateSignal(const MarketState &state) {
     if(CountBullishPatterns() > 0) {
         if(IsNearKeyLevel(state, true)) {
             // RSI filter: not overbought
-            if(state.rsi14 < 70) {
+            // Phase 3B H2: slightly wider band vs compressed tape / Q60 (not profit tuning)
+            if(state.rsi14 < 72) {
                 // Volume confirmation
                 double avgVolume = GetAverageVolume(20);
                 double currentVolume = MathMax(GetVolume(0), GetVolume(1));
@@ -203,7 +205,7 @@ void PriceAction::CalculateSignal(const MarketState &state) {
     if(CountBearishPatterns() > 0) {
         if(IsNearKeyLevel(state, false)) {
             // RSI filter: not oversold
-            if(state.rsi14 > 30) {
+            if(state.rsi14 > 28) {
                 // Volume confirmation
                 double avgVolume = GetAverageVolume(20);
                 double currentVolume = MathMax(GetVolume(0), GetVolume(1));
@@ -242,9 +244,9 @@ void PriceAction::DetectPatterns(void) {
         double body = GetCandleBody(sh);
         if(body < pt)
             body = pt;
-        if(GetLowerWick(sh) > body * 1.15 && GetClose(sh) >= GetOpen(sh))
+        if(GetLowerWick(sh) > body * 1.08 && GetClose(sh) >= GetOpen(sh))
             m_softBullPA = true;
-        if(GetUpperWick(sh) > body * 1.15 && GetClose(sh) <= GetOpen(sh))
+        if(GetUpperWick(sh) > body * 1.08 && GetClose(sh) <= GetOpen(sh))
             m_softBearPA = true;
     }
     
@@ -308,7 +310,7 @@ bool PriceAction::IsNearKeyLevel(const MarketState &state, bool lookForSupport) 
     // Phase 3A: scale "near" by ATR — raw dollar cap was too tight vs XAU M5 swings vs BB/SR
     double pad = m_keyLevelProximity;
     if(state.atr14 > 0)
-        pad = MathMax(pad, state.atr14 * 10.0);
+        pad = MathMax(pad, state.atr14 * 11.0);
     
     if(lookForSupport) {
         // Check if near support
@@ -338,7 +340,7 @@ bool PriceAction::IsNearKeyLevel(const MarketState &state, bool lookForSupport) 
     
     // Phase 3A++ v4: S/R or BB edge may be unset — mid-band proximity keeps path testable
     if(state.bbMiddle > 0 && state.atr14 > 0) {
-        double midPad = MathMax(pad, state.atr14 * 12.0);
+        double midPad = MathMax(pad, state.atr14 * 13.0);
         if(MathAbs(currentPrice - state.bbMiddle) <= midPad)
             return true;
     }
@@ -404,7 +406,7 @@ double PriceAction::CalculateStrength(const MarketState &state, ENUM_SIGNAL dire
     
     //--- Bonus 4: Volume confirmation adds 0.10
     double avgVolume = GetAverageVolume(20);
-    double currentVolume = GetVolume(0);
+    double currentVolume = MathMax(GetVolume(0), GetVolume(1));
     if(avgVolume > 0 && currentVolume > (avgVolume * 1.2)) {
         strength += 0.10;
     }
@@ -426,8 +428,9 @@ double PriceAction::CalculateStrength(const MarketState &state, ENUM_SIGNAL dire
         strength += 0.10;
     }
     
-    //--- Penalty: Dead zone reduces strength
-    if(IsDeadZone(state)) {
+    //--- Penalty: Dead zone — Phase 3B H2: only TRENDING/VOLATILE (Q60 survival in RANGING/CALM)
+    if(IsDeadZone(state) &&
+       (state.regime == REGIME_TRENDING || state.regime == REGIME_VOLATILE)) {
         strength *= 0.7;
     }
     

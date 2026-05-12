@@ -924,4 +924,14 @@ AurumSynapse/
 
 ---
 
+## 11. Telemetry and offline analytics (freeze 2026-05-12)
+
+**Scope:** Passive **T1** ring buffer, **T2** `FILE_COMMON` CSV append with bounded queue + timer drain, and **Phase 3A Stream A** (`TelemetryAnalytics/` + `Tests/TestTelemetryAnalytics.mq5`) as a **separate** compile target. Telemetry hooks are **`#ifdef`**-guarded; capture path is **read-only** toward trading decisions.
+
+**Data path:** `TelemetryCollector` → (optional ring) → (optional queue + `TelemetryWriter`) → `AurumSynapse\telemetry\AS_TELEMETRY_V1_*.csv`. **Analytics** uses `FileFindFirst` / `FileOpen` with **full relative path** under Common (MQL5 returns bare filenames from find; see roadmap root-cause).
+
+**Contract:** `AS_TELEMETRY_V1` is **STABLE / VERSION-LOCKED** — see `Telemetry/TelemetrySchema.md` and `Tests/POST_COMPLETION_VALIDATION_ROADMAP.md` (completion freeze section).
+
+---
+
 *This document is the canonical architectural reference for Aurum Synapse v2. All implementation should conform to the structures, flows, and decisions described here. Deviations require updating this document first.*

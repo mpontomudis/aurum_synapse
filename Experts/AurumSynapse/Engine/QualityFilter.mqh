@@ -268,11 +268,17 @@ double QualityFilter::ScoreMomentum(const MarketState &state, ENUM_SIGNAL signal
     if(signal == SIGNAL_BUY) {
         //--- BUY: RSI > 50, MACD > 0
         if(state.rsi14 > 50 && state.rsi14 < 80) score += 5;
+        //--- Counter-trend / capitulation sleeve (GridRecovery, MR): arm uses RSI < 42 — classic
+        //    "RSI > 50" momentum gate never fires, Q60 blocks every isolation fill.
+        else if(state.rsi14 < 35) score += 8;
+        else if(state.rsi14 < 45) score += 5;
         if(state.macdMain > state.macdSignal) score += 5;
     }
     else if(signal == SIGNAL_SELL) {
         //--- SELL: RSI < 50, MACD < 0
         if(state.rsi14 < 50 && state.rsi14 > 20) score += 5;
+        else if(state.rsi14 > 65) score += 8;
+        else if(state.rsi14 > 55) score += 5;
         if(state.macdMain < state.macdSignal) score += 5;
     }
     

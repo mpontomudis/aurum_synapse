@@ -12,6 +12,7 @@
 
 #include "../Core/Constants.mqh"
 #include "../Core/Structures.mqh"
+#include "../Core/TradeDiag.mqh"
 
 //+------------------------------------------------------------------+
 //| Risk Manager Class                                               |
@@ -69,6 +70,8 @@ public:
     
     //--- Initialization
     bool             Init();
+    //--- Sync EA Inputs with internal limits (defaults come from Constants.mqh until this runs)
+    void             SetRiskLimitsFromInputs(double maxEquityDDPct, int maxConsecutiveLosses, double maxDailyLossPct);
     
     //--- Main risk checks
     bool             IsDailyLossExceeded(double maxPct);
@@ -143,11 +146,24 @@ bool RiskManager::Init(void) {
     m_lastResetDate = StringToTime(StringFormat("%04d.%02d.%02d 00:00:00", 
                                                   dt.year, dt.mon, dt.day));
     
-    Print("RiskManager initialized - Starting Equity: $", m_startingEquity);
-    Print("Risk Limits - Daily Loss: ", m_maxDailyLossPercent, "% / $", m_maxDailyLossDollars,
-          " | Max DD: ", m_maxEquityDDPercent, "% | Consecutive Losses: ", m_maxConsecutiveLosses);
+    Print("RiskManager initialized - Starting Equity: $", m_startingEquity,
+          " (risk limits: apply Inputs via SetRiskLimitsFromInputs)");
     
     return true;
+}
+
+//+------------------------------------------------------------------+
+//| Apply Expert inputs (was ignored — CanTrade used Constants only) |
+//+------------------------------------------------------------------+
+void RiskManager::SetRiskLimitsFromInputs(double maxEquityDDPct, int maxConsecutiveLosses, double maxDailyLossPct) {
+    if(maxEquityDDPct > 0.0 && maxEquityDDPct <= 100.0)
+        m_maxEquityDDPercent = maxEquityDDPct;
+    if(maxConsecutiveLosses > 0 && maxConsecutiveLosses <= 50)
+        m_maxConsecutiveLosses = maxConsecutiveLosses;
+    if(maxDailyLossPct > 0.0 && maxDailyLossPct <= 100.0)
+        m_maxDailyLossPercent = maxDailyLossPct;
+    Print("RiskManager - Inputs applied: MaxEqDD=", m_maxEquityDDPercent, "% | MaxConsecLosses=", m_maxConsecutiveLosses,
+          " | MaxDailyLoss%=", m_maxDailyLossPercent, " | DailyLoss$cap=", m_maxDailyLossDollars);
 }
 
 //+------------------------------------------------------------------+
@@ -219,6 +235,7 @@ bool RiskManager::CanTrade(void) {
     //--- Check circuit breaker status
     if(m_isHalted) {
         if(TimeCurrent() < m_haltUntil) {
+            TradeDiag_Blocked("CooldownActive", _Symbol, 0.0, -1);
             return false;  // Still in cooldown
         }
         //--- Cooldown expired, reset circuit breaker
@@ -226,9 +243,18 @@ bool RiskManager::CanTrade(void) {
     }
     
     //--- Check all risk limits
-    if(IsDailyLossExceeded(m_maxDailyLossPercent)) return false;
-    if(IsEquityDDExceeded(m_maxEquityDDPercent)) return false;
-    if(IsMaxConsecutiveLossesReached()) return false;
+    if(IsDailyLossExceeded(m_maxDailyLossPercent)) {
+        TradeDiag_Blocked("DailyLossLimit", _Symbol, 0.0, -1);
+        return false;
+    }
+    if(IsEquityDDExceeded(m_maxEquityDDPercent)) {
+        TradeDiag_Blocked("MaxDrawdown", _Symbol, 0.0, -1);
+        return false;
+    }
+    if(IsMaxConsecutiveLossesReached()) {
+        TradeDiag_Blocked("MaxConsecutiveLosses", _Symbol, 0.0, -1);
+        return false;
+    }
     
     return true;
 }

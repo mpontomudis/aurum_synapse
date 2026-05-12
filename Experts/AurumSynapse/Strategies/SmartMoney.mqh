@@ -46,10 +46,10 @@
 //|   +0.10 if momentum aligned (MACD + RSI)                         |
 //|   +0.05 if golden hour                                           |
 //|                                                                  |
-//| Activation: trending/volatile/ranging + primed swing refs        |
-//| Phase 3A+: STRUCTURE_NONE + BOS; Phase 3A++ (May 2026): bar0|1   |
-//| sweep for BOS on new-bar EA; lower BOS ×ATR; momentum OR gate;   |
-//| CALM regime allowed for isolation visibility.                       |
+//| Activation: trending/volatile/ranging/calm + primed swing refs   |
+//| Phase 3A+: STRUCTURE_NONE + BOS; Phase 3A++: bar0|1 sweep; CALM on. |
+//| Phase 3B H2: dead-zone penalty T/V only; OB retest 1.12×ATR; OB age|
+//| +2; bear sweep/OB allow HH_HL (bull-tape fakeout path).            |
 //+------------------------------------------------------------------+
 class SmartMoney : public BaseStrategy {
 private:
@@ -57,7 +57,7 @@ private:
     int              m_lookbackBars;           // Bars to scan for structure (50)
     double           m_bosThreshold;           // BOS min break vs ATR (Phase 3A++ ~0.45)
     int              m_structurePeriod;        // Period for structure analysis (20)
-    int              m_orderBlockMaxAge;       // Max age of order block (10)
+    int              m_orderBlockMaxAge;       // Max age of order block (Phase 3B: 12)
     
     //--- Market structure tracking
     double           m_lastHigh;
@@ -68,11 +68,15 @@ private:
     bool             m_bosBullish;
     double           m_orderBlockPrice;
     int              m_orderBlockAge;
+    double           m_bearOBPrice;        // Phase 3A+ short-side: separate bearish order block
+    int              m_bearOBAge;
     
     //--- Helper methods
     void             UpdateMarketStructure();
     bool             DetectBullishBOS();
     bool             DetectBearishBOS();
+    bool             DetectBearishSweep();     // Phase 3A+ v5: liquidity sweep above swing high → sell
+    bool             DetectBullishSweep();     // symmetric: sweep below swing low → buy
     bool             IsAtOrderBlock(double price, bool bullish);
     bool             HasMomentumConfirmation(const MarketState &state, bool bullish);
     double           GetBOSStrength(double breakDistance, double atr);
@@ -97,9 +101,11 @@ public:
 //+------------------------------------------------------------------+
 SmartMoney::SmartMoney(void) :
     m_lookbackBars(50),
-    m_bosThreshold(0.45),
-    m_structurePeriod(20),
-    m_orderBlockMaxAge(10),
+    // Phase 3A+: density rehab — BOS vs 20-bar extremes was starving trades at Q60.
+    // Tighten the swing window and reduce the ATR break requirement to get statistically usable n.
+    m_bosThreshold(0.25),
+    m_structurePeriod(12),
+    m_orderBlockMaxAge(12),
     m_lastHigh(0),
     m_lastLow(0),
     m_lastHighBar(0),
@@ -107,7 +113,9 @@ SmartMoney::SmartMoney(void) :
     m_bosDetected(false),
     m_bosBullish(false),
     m_orderBlockPrice(0),
-    m_orderBlockAge(0)
+    m_orderBlockAge(0),
+    m_bearOBPrice(0),
+    m_bearOBAge(0)
 {
     m_name = "SmartMoney";
     m_baseWeight = WEIGHT_SMART_MONEY;  // 1.3 from constants
@@ -135,7 +143,7 @@ void SmartMoney::Init(IndicatorCache* cache, double baseWeight, string symbol, E
     regimes[3] = REGIME_CALM;
     SetActiveRegimes(regimes, 4);
     
-    Print("SmartMoney initialized - TRENDING/VOLATILE/RANGING/CALM (Phase 3A++ v3)");
+    Print("SmartMoney initialized - T/V/R/C + Phase 3B H2: OB retest 1.12xATR, OB age 12, deadzone T/V only, bear sweep/OB+HH_HL");
 }
 
 //+------------------------------------------------------------------+
@@ -160,32 +168,75 @@ bool SmartMoney::CheckActivation(const MarketState &state) {
 //| Calculate trading signal                                         |
 //+------------------------------------------------------------------+
 void SmartMoney::CalculateSignal(const MarketState &state) {
-    // Check for bullish BOS entry
-    if(DetectBullishBOS()) {
-        // Align with HH/HL, or flat EMA label (NONE) — BOS direction is the micro-structure vote
-        bool structOk = (state.structure == STRUCTURE_HH_HL) || (state.structure == STRUCTURE_NONE);
-        if(structOk) {
-            if(HasMomentumConfirmation(state, true)) {
-                m_signal = SIGNAL_BUY;
-                m_strength = CalculateStrength(state, SIGNAL_BUY);
-                return;
-            }
+    double atr = GetATR();
+
+    // Phase 3A+ short-side: bearish OB retest (separate tracking, not overwritten by bullish BOS)
+    if(m_bearOBPrice > 0 && m_bearOBAge <= m_orderBlockMaxAge && atr > 0) {
+        bool structOk = (state.structure == STRUCTURE_LL_LH || state.structure == STRUCTURE_NONE ||
+                         state.structure == STRUCTURE_HH_HL);
+        if(structOk && MathAbs(state.bid - m_bearOBPrice) < atr * 1.12 && HasMomentumConfirmation(state, false)) {
+            m_signal = SIGNAL_SELL;
+            m_strength = CalculateStrength(state, SIGNAL_SELL);
+            return;
         }
     }
-    
-    // Check for bearish BOS entry
+
+    // Bullish OB retest (uses m_orderBlockPrice set by bullish BOS)
+    if(m_orderBlockPrice > 0 && m_orderBlockAge <= m_orderBlockMaxAge && m_bosBullish && atr > 0) {
+        bool structOk = (state.structure == STRUCTURE_HH_HL || state.structure == STRUCTURE_NONE);
+        if(structOk && MathAbs(state.bid - m_orderBlockPrice) < atr * 1.12 && HasMomentumConfirmation(state, true)) {
+            m_signal = SIGNAL_BUY;
+            m_strength = CalculateStrength(state, SIGNAL_BUY);
+            return;
+        }
+    }
+
+    // Phase 3A+ v5: liquidity sweep sells (swept swing high, rejected back below)
+    if(DetectBearishSweep()) {
+        bool structOk = (state.structure == STRUCTURE_LL_LH || state.structure == STRUCTURE_NONE ||
+                         state.structure == STRUCTURE_HH_HL);
+        if(structOk && HasMomentumConfirmation(state, false)) {
+            m_signal = SIGNAL_SELL;
+            m_strength = CalculateStrength(state, SIGNAL_SELL);
+            m_bearOBPrice = GetHigh(1);
+            m_bearOBAge = 0;
+            return;
+        }
+    }
+
+    // Liquidity sweep buys (swept swing low, rejected back above)
+    if(DetectBullishSweep()) {
+        bool structOk = (state.structure == STRUCTURE_HH_HL || state.structure == STRUCTURE_NONE);
+        if(structOk && HasMomentumConfirmation(state, true)) {
+            m_signal = SIGNAL_BUY;
+            m_strength = CalculateStrength(state, SIGNAL_BUY);
+            m_orderBlockPrice = GetLow(1);
+            m_orderBlockAge = 0;
+            m_bosBullish = true;
+            return;
+        }
+    }
+
+    // Fresh bearish BOS (checked before bullish to avoid bull-trend priority starvation)
     if(DetectBearishBOS()) {
         bool structOk = (state.structure == STRUCTURE_LL_LH) || (state.structure == STRUCTURE_NONE);
-        if(structOk) {
-            if(HasMomentumConfirmation(state, false)) {
-                m_signal = SIGNAL_SELL;
-                m_strength = CalculateStrength(state, SIGNAL_SELL);
-                return;
-            }
+        if(structOk && HasMomentumConfirmation(state, false)) {
+            m_signal = SIGNAL_SELL;
+            m_strength = CalculateStrength(state, SIGNAL_SELL);
+            return;
         }
     }
-    
-    // No valid smart money signal
+
+    // Fresh bullish BOS
+    if(DetectBullishBOS()) {
+        bool structOk = (state.structure == STRUCTURE_HH_HL) || (state.structure == STRUCTURE_NONE);
+        if(structOk && HasMomentumConfirmation(state, true)) {
+            m_signal = SIGNAL_BUY;
+            m_strength = CalculateStrength(state, SIGNAL_BUY);
+            return;
+        }
+    }
+
     m_signal = SIGNAL_NONE;
     m_strength = 0.0;
 }
@@ -196,6 +247,7 @@ void SmartMoney::CalculateSignal(const MarketState &state) {
 void SmartMoney::UpdateMarketStructure(void) {
     m_bosDetected = false;
     m_orderBlockAge++;
+    m_bearOBAge++;
     
     // Find recent significant high
     double recentHigh = GetHigh(1);
@@ -271,15 +323,63 @@ bool SmartMoney::DetectBearishBOS(void) {
             m_bosDetected = true;
             m_bosBullish = false;
             
-            // Mark order block (the consolidation before BOS)
-            m_orderBlockPrice = GetHigh(m_lastLowBar);
+            double obPrice = GetHigh(m_lastLowBar);
+            m_orderBlockPrice = obPrice;
             m_orderBlockAge = 0;
+            m_bearOBPrice = obPrice;
+            m_bearOBAge = 0;
             
             return true;
         }
     }
     
     return false;
+}
+
+//+------------------------------------------------------------------+
+//| Detect bearish liquidity sweep (sell signal in bull markets)      |
+//| Bar 1 swept above the 12-bar swing high then closed back below   |
+//| it with a bearish body — classic stop-hunt / fake breakout.      |
+//+------------------------------------------------------------------+
+bool SmartMoney::DetectBearishSweep(void) {
+    if(m_lastHigh == 0) return false;
+    
+    double high1  = GetHigh(1);
+    double close1 = GetClose(1);
+    double open1  = GetOpen(1);
+    double low1   = GetLow(1);
+    double range1 = high1 - low1;
+    
+    if(range1 <= 0) return false;
+    
+    bool sweptHigh    = (high1 > m_lastHigh);
+    bool closedBelow  = (close1 < m_lastHigh);
+    bool bearishClose = (close1 < open1);
+    bool upperWick    = (high1 - MathMax(close1, open1)) > range1 * 0.33;
+    
+    return (sweptHigh && closedBelow && bearishClose && upperWick);
+}
+
+//+------------------------------------------------------------------+
+//| Detect bullish liquidity sweep (symmetric — sweep below low)     |
+//+------------------------------------------------------------------+
+bool SmartMoney::DetectBullishSweep(void) {
+    if(m_lastLow == 0) return false;
+    
+    double high1  = GetHigh(1);
+    double close1 = GetClose(1);
+    double open1  = GetOpen(1);
+    double low1   = GetLow(1);
+    double range1 = high1 - low1;
+    
+    if(range1 <= 0) return false;
+    
+    bool sweptLow     = (low1 < m_lastLow);
+    bool closedAbove  = (close1 > m_lastLow);
+    bool bullishClose = (close1 > open1);
+    bool lowerWick    = (MathMin(close1, open1) - low1) > range1 * 0.33;
+    
+    return (sweptLow && closedAbove && bullishClose && lowerWick);
 }
 
 //+------------------------------------------------------------------+
@@ -378,8 +478,9 @@ double SmartMoney::CalculateStrength(const MarketState &state, ENUM_SIGNAL direc
         strength += 0.10;
     }
     
-    //--- Penalty: Dead zone reduces strength
-    if(IsDeadZone(state)) {
+    //--- Penalty: Dead zone — Phase 3B: only in TRENDING/VOLATILE (H2/session strength vs Q60 in RANGING/CALM)
+    if(IsDeadZone(state) &&
+       (state.regime == REGIME_TRENDING || state.regime == REGIME_VOLATILE)) {
         strength *= 0.7;
     }
     

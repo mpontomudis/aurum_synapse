@@ -1,0 +1,22 @@
+# --- Aurum Synapse / MQL5 repo hygiene ---
+# Compiled artifacts (rebuild from .mq5 via MetaEditor)
+*.ex5
+*.ex4
+
+# EA runtime log next to source (optional local)
+Experts/AurumSynapse/AurumSynapse.log
+
+# MetaEditor / CI scratch logs at workspace root
+compile_*.log
+compile_ea_*.log
+compile_analytics.log
+compile_t1.log
+compile_t2.log
+
+# Terminal binary index (regenerated locally)
+experts.dat
+
+# OS / IDE
+Thumbs.db
+.DS_Store
+.cursor/

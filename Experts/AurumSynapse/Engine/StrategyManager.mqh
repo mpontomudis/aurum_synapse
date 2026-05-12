@@ -387,6 +387,9 @@ void StrategyManager::GetAllSignals(SignalResult &results[]) {
     // and resizing a static array is undefined behavior and can corrupt memory/runtime state.
     // Instead, copy up to the available capacity.
     int capacity = ArraySize(results);
+    // MQL5: some caller stacks report ArraySize==0 for fixed `SignalResult s[8]` — always copy 8.
+    if(capacity < 1)
+        capacity = 8;
     int n = MathMin(capacity, 8);
     for(int i = 0; i < n; i++) {
         results[i].signal = m_signals[i].signal;

@@ -27,7 +27,7 @@
 //|                                                                  |
 //|   SELL:                                                          |
 //|     - Price > Upper BB OR within 20% of BB width                 |
-//|     - RSI > 70 (overbought)                                      |
+//|     - RSI > overbought (60 Phase 3A+)                            |
 //|     - Price above EMA21                                          |
 //|                                                                  |
 //| Strength Calculation:                                            |
@@ -37,9 +37,10 @@
 //|   +0.10 if low volatility (ATR ratio < 0.8)                      |
 //|   +0.10 if multiple touches of BB (consolidation)                |
 //|   +0.05 if golden hour                                           |
-//|   -0.30 penalty if ADX > 25 (trending, not ranging)              |
+//|   -0.30 penalty if ADX > 25 in TRENDING/VOLATILE only (Phase 3B) |
+//|   Dead-zone strength penalty only in TRENDING/VOLATILE (Phase 3B)|
 //|                                                                  |
-//| Activation: RANGING or CALM regimes                              |
+//| Activation: ALL regimes (Phase 3A+); strength gates regime-aware|
 //+------------------------------------------------------------------+
 class MeanReversion : public BaseStrategy {
 private:
@@ -61,6 +62,8 @@ private:
     int              CountBBTouches(bool checkUpper);
     bool             IsLowVolatility(const MarketState &state);
     double           CalculateStrength(const MarketState &state, ENUM_SIGNAL direction);
+    //--- Temporary tester-only H2 drought diagnostics (Aug–Sep); remove after investigation
+    void             MaybeLogMrAugSepDiag_(const MarketState &state);
     
 protected:
     //--- Pure virtual implementations
@@ -81,7 +84,7 @@ public:
 //+------------------------------------------------------------------+
 MeanReversion::MeanReversion(void) :
     m_rsiOversold(45.0),           // PHASE 1: Relaxed from 30 to 45
-    m_rsiOverbought(55.0),         // PHASE 1: Relaxed from 70 to 55
+    m_rsiOverbought(60.0),         // Phase 3A+: 55 → 60 (need genuine overbought, not breakout zone)
     m_rsiExtreme(20.0),
     m_bbProximity(0.20),
     m_bbTouchLookback(10),
@@ -105,32 +108,25 @@ void MeanReversion::Init(IndicatorCache* cache, double baseWeight, string symbol
     // Call base class init
     BaseStrategy::Init(cache, baseWeight, symbol, tf);
     
-    // Set active regimes (RANGING and CALM)
-    ENUM_REGIME regimes[2];
+    // Phase 3A+: all regimes — MR can fire when price overextends in any condition.
+    // Phase 3B: strength penalties (ADX, dead zone) scoped to TRENDING/VOLATILE only in CalculateStrength.
+    ENUM_REGIME regimes[4];
     regimes[0] = REGIME_RANGING;
     regimes[1] = REGIME_CALM;
-    SetActiveRegimes(regimes, 2);
+    regimes[2] = REGIME_VOLATILE;
+    regimes[3] = REGIME_TRENDING;
+    SetActiveRegimes(regimes, 4);
     
-    Print("MeanReversion initialized - Active in RANGING and CALM regimes");
+    Print("MeanReversion initialized - Phase 3B H2: ALL regimes; RSI sell 60; SELL bar0 or bar1 bearish; ADX+deadzone penalties T/V only");
 }
 
 //+------------------------------------------------------------------+
 //| Check if strategy should be active                               |
 //+------------------------------------------------------------------+
 bool MeanReversion::CheckActivation(const MarketState &state) {
-    // Active in RANGING or CALM regimes
-    if(state.regime != REGIME_RANGING && state.regime != REGIME_CALM) {
+    // Phase 3A+: use base-class regime check (all 4 regimes registered in Init)
+    if(!IsActiveInCurrentRegime(state))
         return false;
-    }
-    
-    // PHASE 1 TESTING: ADX check temporarily disabled to allow more signals
-    // Will re-enable after Phase 1 validation completes
-    /*
-    // Don't trade in strong trends (ADX > 30)
-    if(state.adx > 30) {
-        return false;
-    }
-    */
     
     // Need visible range (Bollinger Bands should be defined)
     double bbWidth = state.bbUpper - state.bbLower;
@@ -142,9 +138,100 @@ bool MeanReversion::CheckActivation(const MarketState &state) {
 }
 
 //+------------------------------------------------------------------+
+//| Tester-only: sample closed bar (shift=1) Aug–Sep — max 30 lines   |
+//| Compares bar[1] raw MR-BUY geometry vs live path on current state|
+//+------------------------------------------------------------------+
+void MeanReversion::MaybeLogMrAugSepDiag_(const MarketState &state) {
+    if(!MQLInfoInteger(MQL_TESTER))
+        return;
+    
+    datetime barTime = iTime(m_symbol, m_timeframe, 1);
+    if(barTime <= 0)
+        return;
+    
+    MqlDateTime dt;
+    TimeToStruct(barTime, dt);
+    if(dt.mon != 8 && dt.mon != 9)
+        return;
+    
+    static int      s_mrDiagPrinted = 0;
+    static datetime s_mrDiagLastPrintedDay = 0;
+    
+    MqlDateTime dDay = dt;
+    dDay.hour = 0;
+    dDay.min = 0;
+    dDay.sec = 0;
+    datetime dayKey = StructToTime(dDay);
+    if(dayKey == s_mrDiagLastPrintedDay)
+        return;
+    if(s_mrDiagPrinted >= 30)
+        return;
+    
+    static int s_bbH = INVALID_HANDLE;
+    static int s_rsiH = INVALID_HANDLE;
+    static int s_emaH = INVALID_HANDLE;
+    if(s_bbH == INVALID_HANDLE) {
+        s_bbH = iBands(m_symbol, m_timeframe, BB_PERIOD, 0, BB_DEVIATION, PRICE_CLOSE);
+        s_rsiH = iRSI(m_symbol, m_timeframe, RSI_PERIOD, PRICE_CLOSE);
+        s_emaH = iMA(m_symbol, m_timeframe, 21, 0, MODE_EMA, PRICE_CLOSE);
+    }
+    if(s_bbH == INVALID_HANDLE || s_rsiH == INVALID_HANDLE || s_emaH == INVALID_HANDLE)
+        return;
+    
+    double bu[], bl[], rs[], em[];
+    ArraySetAsSeries(bu, true);
+    ArraySetAsSeries(bl, true);
+    ArraySetAsSeries(rs, true);
+    ArraySetAsSeries(em, true);
+    if(CopyBuffer(s_bbH, 0, 1, 1, bu) < 1) return;
+    if(CopyBuffer(s_bbH, 2, 1, 1, bl) < 1) return;
+    if(CopyBuffer(s_rsiH, 0, 1, 1, rs) < 1) return;
+    if(CopyBuffer(s_emaH, 0, 1, 1, em) < 1) return;
+    
+    const double upper = bu[0];
+    const double lower = bl[0];
+    const double rsi1 = rs[0];
+    const double ema21_1 = em[0];
+    const double close1 = GetClose(1);
+    const double bbWidth = upper - lower;
+    if(bbWidth <= 0.0 || lower <= 0.0)
+        return;
+    
+    const double bbDist = close1 - lower;
+    const double prox = bbWidth * m_bbProximity;
+    const bool   nearLower = (close1 <= lower + prox);
+    const bool   belowLower = (close1 < lower);
+    const bool   rsiOversold = (rsi1 < m_rsiOversold);
+    const bool   aboveEma = (close1 > ema21_1);
+    const bool   hypoBar1Buy = rsiOversold && (nearLower || belowLower) && (close1 < ema21_1);
+    
+    const bool liveBuyPath = IsOversold(state) &&
+                             (IsPriceNearLowerBB(state) || IsPriceBeyondLowerBB(state)) &&
+                             (state.bid < state.ema21);
+    
+    Print("[MR-DIAG] time=", TimeToString(barTime, TIME_DATE | TIME_MINUTES),
+          " close1=", DoubleToString(close1, _Digits),
+          " lower1=", DoubleToString(lower, _Digits),
+          " bbDist=", DoubleToString(bbDist, _Digits),
+          " rsi1=", DoubleToString(rsi1, 1),
+          " nearLower=", (nearLower ? "1" : "0"),
+          " belowLower=", (belowLower ? "1" : "0"),
+          " rsiOS=", (rsiOversold ? "1" : "0"),
+          " aboveEMA=", (aboveEma ? "1" : "0"),
+          " hypoBar1Buy=", (hypoBar1Buy ? "1" : "0"),
+          " live0Buy=", (liveBuyPath ? "1" : "0"),
+          " regime=", (int)state.regime);
+    
+    s_mrDiagLastPrintedDay = dayKey;
+    s_mrDiagPrinted++;
+}
+
+//+------------------------------------------------------------------+
 //| Calculate trading signal                                         |
 //+------------------------------------------------------------------+
 void MeanReversion::CalculateSignal(const MarketState &state) {
+    MaybeLogMrAugSepDiag_(state);
+    
     // Check for oversold conditions (BUY signal)
     if(IsOversold(state)) {
         if(IsPriceNearLowerBB(state) || IsPriceBeyondLowerBB(state)) {
@@ -159,10 +246,13 @@ void MeanReversion::CalculateSignal(const MarketState &state) {
     // Check for overbought conditions (SELL signal)
     if(IsOverbought(state)) {
         if(IsPriceNearUpperBB(state) || IsPriceBeyondUpperBB(state)) {
-            if(state.bid > state.ema21) {  // Price above short-term EMA
-                m_signal = SIGNAL_SELL;
-                m_strength = CalculateStrength(state, SIGNAL_SELL);
-                return;
+            if(state.bid > state.ema21) {
+                // Phase 3A+: bar-1 bearish. Phase 3B: bar0 or bar1 (H2 snap; same family as TrendFollowing)
+                if(IsBearishCandle(0) || IsBearishCandle(1)) {
+                    m_signal = SIGNAL_SELL;
+                    m_strength = CalculateStrength(state, SIGNAL_SELL);
+                    return;
+                }
             }
         }
     }
@@ -321,13 +411,15 @@ double MeanReversion::CalculateStrength(const MarketState &state, ENUM_SIGNAL di
         strength += 0.10;
     }
     
-    //--- Penalty 1: ADX > 25 (trending, not ideal for mean reversion) reduces by 30%
-    if(state.adx > 25) {
+    //--- Penalty 1: ADX > 25 — Phase 3B: only in TRENDING/VOLATILE (MR home RANGING/CALM should not double-penalize vs regime)
+    if(state.adx > 25.0 &&
+       (state.regime == REGIME_TRENDING || state.regime == REGIME_VOLATILE)) {
         strength *= 0.7;
     }
     
-    //--- Penalty 2: Dead zone reduces strength
-    if(IsDeadZone(state)) {
+    //--- Penalty 2: Dead zone — Phase 3B: only in TRENDING/VOLATILE (session starvation in RANGING/CALM H2/H1)
+    if(IsDeadZone(state) &&
+       (state.regime == REGIME_TRENDING || state.regime == REGIME_VOLATILE)) {
         strength *= 0.7;
     }
     

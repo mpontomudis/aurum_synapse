@@ -24,8 +24,12 @@
 //| Core Concept:                                                    |
 //|   - Grid averaging (add to position at intervals)                |
 //|   - Strict limits: MAX 3 levels only                             |
-//|   - Active regimes: VOLATILE + TRENDING (Phase 3A — FY tester)   |
+//|   - Active regimes: VOL+TREND+RANG (Phase 3A+ v2 — CALM excluded) |
 //|   - Requires reversal context (RSI arm + patterns)               |
+//|                                                                  |
+//| Phase 3E+ (forensic): LONG and SHORT recovery chains use         |
+//|   separate level / anchor / active flags. Shared state caused    |
+//|   SELL legs to inherit BUY anchor & level (state contamination). |
 //|                                                                  |
 //| Entry Conditions:                                                |
 //|   BUY (Add to Long):                                             |
@@ -51,7 +55,7 @@
 //|   -0.20 penalty if already at 2 grid levels                      |
 //|   -0.40 penalty if at 3 grid levels (discourage further)         |
 //|                                                                  |
-//| Activation: VOLATILE + TRENDING (Phase 3A tester); atrRatio floor |
+//| Activation: global atrRatio >= 0.85 (Phase 3A+ v2; roadmap §Test 3.7) |
 //| Phase 3A: first grid leg must emit BUY/SELL (was armed then NONE).|
 //+------------------------------------------------------------------+
 class GridRecovery : public BaseStrategy {
@@ -59,9 +63,13 @@ private:
     //--- Strategy-specific settings
     int              m_maxGridLevels;          // Maximum grid levels (3)
     double           m_gridDistance;           // Grid spacing (× ATR)
-    int              m_currentGridLevel;       // Current grid count
-    double           m_lastGridPrice;          // Last grid entry price
-    bool             m_gridActive;             // Is grid recovery active
+    //--- Phase 3E+: separate chain state (forensic fix — no BUY/SELL cross-contamination)
+    int              m_currentGridLevelLong;
+    int              m_currentGridLevelShort;
+    double           m_lastGridPriceLong;
+    double           m_lastGridPriceShort;
+    bool             m_gridActiveLong;
+    bool             m_gridActiveShort;
     double           m_rsiArmOversold;          // Phase 3A: permissive first-leg RSI
     double           m_rsiArmOverbought;
     
@@ -90,12 +98,15 @@ public:
 //+------------------------------------------------------------------+
 GridRecovery::GridRecovery(void) :
     m_maxGridLevels(3),         // STRICT LIMIT: MAX 3 LEVELS
-    m_gridDistance(1.5),        // 1.5× ATR spacing
-    m_currentGridLevel(0),
-    m_lastGridPrice(0),
-    m_gridActive(false),
-    m_rsiArmOversold(38.0),
-    m_rsiArmOverbought(62.0)
+    m_gridDistance(1.5),        // Phase 3F-A forensic: spacing only — canonical 1.5×ATR (RSI 42/58 unchanged)
+    m_currentGridLevelLong(0),
+    m_currentGridLevelShort(0),
+    m_lastGridPriceLong(0),
+    m_lastGridPriceShort(0),
+    m_gridActiveLong(false),
+    m_gridActiveShort(false),
+    m_rsiArmOversold(42.0),    // Phase 3A+: 38 → 42 (wider arm for density)
+    m_rsiArmOverbought(58.0)   // Phase 3A+: 62 → 58
 {
     m_name = "GridRecovery";
     m_baseWeight = WEIGHT_GRID_RECOVERY;  // 0.7 (lower weight - risky)
@@ -115,13 +126,14 @@ void GridRecovery::Init(IndicatorCache* cache, double baseWeight, string symbol,
     // Call base class init
     BaseStrategy::Init(cache, baseWeight, symbol, tf);
     
-    // Phase 3A: VOLATILE + TRENDING — FY XAU M5 rarely sat VOLATILE-only for full year
-    ENUM_REGIME regimes[2];
+    // Phase 3A+ v2 (restored): VOL+TREND+RANG only — same profile as canonical 17-trade §Test 3.7 row
+    ENUM_REGIME regimes[3];
     regimes[0] = REGIME_VOLATILE;
     regimes[1] = REGIME_TRENDING;
-    SetActiveRegimes(regimes, 2);
+    regimes[2] = REGIME_RANGING;
+    SetActiveRegimes(regimes, 3);
     
-    Print("GridRecovery initialized - Active: VOLATILE, TRENDING (Phase 3A); MAX 3 levels");
+    Print("GridRecovery initialized - Phase 3A+ v2 + Phase 3E+ state sep + Phase 3F-A: VOL+TREND+RANG; atrRatio>=0.85; RSI 42/58; grid 1.5xATR; MAX 3");
 }
 
 //+------------------------------------------------------------------+
@@ -133,15 +145,12 @@ bool GridRecovery::CheckActivation(const MarketState &state) {
         return false;
     }
     
-    // Must not exceed max grid levels
-    if(m_currentGridLevel >= m_maxGridLevels) {
-        return false;
-    }
+    // Phase 3E+: per-direction max is enforced in CalculateSignal only.
+    // (Legacy single m_currentGridLevel gate removed — it mixed BUY/SELL chains.)
     
-    // Phase 3A: slightly lower floor so module can arm in tester (was 1.3)
-    if(state.atrRatio < 1.08) {
+    // Phase 3A+ v2: single global atr floor (matches roadmap §Test 3.7 pre–Phase 3B H2)
+    if(state.atrRatio < 0.85)
         return false;
-    }
     
     return true;
 }
@@ -166,59 +175,56 @@ void GridRecovery::CalculateSignal(const MarketState &state) {
     // Calculate grid distance
     double gridSpacing = atr * m_gridDistance;
     
-    // Check if we should add to long grid (BUY)
+    // Check if we should add to long grid (BUY) — Phase 3E+: long-only state
     if(state.rsi14 < m_rsiArmOversold) {  // Oversold (Phase 3A: slightly wider than 30)
         if(HasReversalSignal(state, true)) {
-            if(m_currentGridLevel == 0) {
-                m_lastGridPrice = currentPrice;
-                m_currentGridLevel = 1;
-                m_gridActive = true;
+            if(m_currentGridLevelLong == 0) {
+                m_lastGridPriceLong = currentPrice;
+                m_currentGridLevelLong = 1;
+                m_gridActiveLong = true;
                 // P0 fix: first leg must vote BUY — previously fell through to SIGNAL_NONE
                 m_signal = SIGNAL_BUY;
                 m_strength = CalculateStrength(state, SIGNAL_BUY);
                 return;
-            } else if(currentPrice < (m_lastGridPrice - gridSpacing)) {
-                if(m_currentGridLevel < m_maxGridLevels) {
+            } else if(currentPrice < (m_lastGridPriceLong - gridSpacing)) {
+                if(m_currentGridLevelLong < m_maxGridLevels) {
                     m_signal = SIGNAL_BUY;
                     m_strength = CalculateStrength(state, SIGNAL_BUY);
-                    m_lastGridPrice = currentPrice;
-                    m_currentGridLevel++;
+                    m_lastGridPriceLong = currentPrice;
+                    m_currentGridLevelLong++;
                     return;
                 }
             }
         }
     }
     
-    // Check if we should add to short grid (SELL)
+    // Check if we should add to short grid (SELL) — Phase 3E+: short-only state
     if(state.rsi14 > m_rsiArmOverbought) {  // Overbought
         if(HasReversalSignal(state, false)) {
-            if(m_currentGridLevel == 0) {
-                m_lastGridPrice = currentPrice;
-                m_currentGridLevel = 1;
-                m_gridActive = true;
+            if(m_currentGridLevelShort == 0) {
+                m_lastGridPriceShort = currentPrice;
+                m_currentGridLevelShort = 1;
+                m_gridActiveShort = true;
                 m_signal = SIGNAL_SELL;
                 m_strength = CalculateStrength(state, SIGNAL_SELL);
                 return;
-            } else if(currentPrice > (m_lastGridPrice + gridSpacing)) {
-                if(m_currentGridLevel < m_maxGridLevels) {
+            } else if(currentPrice > (m_lastGridPriceShort + gridSpacing)) {
+                if(m_currentGridLevelShort < m_maxGridLevels) {
                     m_signal = SIGNAL_SELL;
                     m_strength = CalculateStrength(state, SIGNAL_SELL);
-                    m_lastGridPrice = currentPrice;
-                    m_currentGridLevel++;
+                    m_lastGridPriceShort = currentPrice;
+                    m_currentGridLevelShort++;
                     return;
                 }
             }
         }
     }
     
-    // Reset grid if price recovered
-    if(m_gridActive) {
-        // Bug fix: impossible condition was rsi>50 && rsi<50
+    // Reset grid if price recovered / mean-revert (neutral RSI band)
+    if(m_gridActiveLong || m_gridActiveShort) {
         bool priceRecovered = (state.rsi14 >= 46.0 && state.rsi14 <= 54.0);
-        
-        if(priceRecovered) {
+        if(priceRecovered)
             ResetGrid();
-        }
     }
     
     // No grid signal
@@ -230,9 +236,6 @@ void GridRecovery::CalculateSignal(const MarketState &state) {
 //| Check if should add to grid                                      |
 //+------------------------------------------------------------------+
 bool GridRecovery::ShouldAddToGrid(const MarketState &state, bool isLong) {
-    // Grid level limit
-    if(m_currentGridLevel >= m_maxGridLevels) return false;
-    
     double atr = state.atr14;
     if(atr == 0) return false;
     
@@ -240,11 +243,13 @@ bool GridRecovery::ShouldAddToGrid(const MarketState &state, bool isLong) {
     double currentPrice = state.bid;
     
     if(isLong) {
-        // Price must have dropped by grid distance
-        return (currentPrice < (m_lastGridPrice - gridSpacing));
+        if(m_currentGridLevelLong >= m_maxGridLevels) return false;
+        if(m_currentGridLevelLong == 0) return false;
+        return (currentPrice < (m_lastGridPriceLong - gridSpacing));
     } else {
-        // Price must have rallied by grid distance
-        return (currentPrice > (m_lastGridPrice + gridSpacing));
+        if(m_currentGridLevelShort >= m_maxGridLevels) return false;
+        if(m_currentGridLevelShort == 0) return false;
+        return (currentPrice > (m_lastGridPriceShort + gridSpacing));
     }
 }
 
@@ -270,6 +275,9 @@ bool GridRecovery::HasReversalSignal(const MarketState &state, bool expectBullis
 //+------------------------------------------------------------------+
 double GridRecovery::CalculateStrength(const MarketState &state, ENUM_SIGNAL direction) {
     double strength = 0.3;  // Base strength: 30% (intentionally low)
+    
+    // Phase 3E+: penalties use the chain that is actually emitting
+    const int levelForPenalty = (direction == SIGNAL_BUY) ? m_currentGridLevelLong : m_currentGridLevelShort;
     
     //--- Bonus 1: RSI extreme adds 0.15
     if(direction == SIGNAL_BUY && state.rsi14 < 20) {
@@ -298,19 +306,18 @@ double GridRecovery::CalculateStrength(const MarketState &state, ENUM_SIGNAL dir
     }
     
     //--- PENALTY 1: Already at 2 grid levels reduces by 0.20
-    if(m_currentGridLevel >= 2) {
+    if(levelForPenalty >= 2) {
         strength -= 0.20;
     }
     
     //--- PENALTY 2: At 3 grid levels (max) reduces by additional 0.40
-    if(m_currentGridLevel >= 3) {
+    if(levelForPenalty >= 3) {
         strength -= 0.40;  // Total penalty: -0.60
     }
     
-    //--- Penalty 3: Dead zone reduces strength
-    if(IsDeadZone(state)) {
-        strength *= 0.5;  // Stronger penalty for grid
-    }
+    //--- Penalty 3: Dead zone (Phase 3A+ v2 — uniform softening vs Q60 starvation split removed)
+    if(IsDeadZone(state))
+        strength *= 0.5;
     
     // Normalize to 0.0 - 1.0 range (will be very low)
     return NormalizeStrength(strength);
@@ -320,9 +327,12 @@ double GridRecovery::CalculateStrength(const MarketState &state, ENUM_SIGNAL dir
 //| Reset grid state                                                 |
 //+------------------------------------------------------------------+
 void GridRecovery::ResetGrid(void) {
-    m_currentGridLevel = 0;
-    m_lastGridPrice = 0;
-    m_gridActive = false;
+    m_currentGridLevelLong = 0;
+    m_currentGridLevelShort = 0;
+    m_lastGridPriceLong = 0;
+    m_lastGridPriceShort = 0;
+    m_gridActiveLong = false;
+    m_gridActiveShort = false;
 }
 
 //+------------------------------------------------------------------+

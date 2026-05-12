@@ -12,6 +12,10 @@
 #property description "8 Strategies | Weighted Consensus | Quality Scoring"
 #property description "Institutional-Grade Risk Management"
 
+//=== Telemetry (compile-time; default OFF). TEST C: A=both off | B=T1 only | C=T1+T2. Enabling T2 without T1 fails compile (TelemetryConfig.mqh). ===
+#define AURUM_TELEMETRY_T1
+#define AURUM_TELEMETRY_T2
+
 //--- Include all components
 #include "Engine/MarketAnalyzer.mqh"
 #include "Engine/StrategyManager.mqh"
@@ -22,6 +26,13 @@
 #include "Execution/TradeManager.mqh"
 #include "UI/InfoPanel.mqh"
 #include "UI/Logger.mqh"
+#include "Core/TradeDiag.mqh"
+#ifdef AURUM_TELEMETRY_T1
+#include "Telemetry/TelemetryCollector.mqh"
+#endif
+#ifdef AURUM_TELEMETRY_T2
+#include "Telemetry/TelemetryPersistence.mqh"
+#endif
 
 //+------------------------------------------------------------------+
 //| INPUT PARAMETERS                                                 |
@@ -32,6 +43,8 @@ input group "=== GENERAL SETTINGS ==="
 input ENUM_LOT_METHOD InpLotMethod = LOT_FIXED;           // Lot Sizing Method
 input double InpFixedLot = 0.01;                          // Fixed Lot Size
 input double InpRiskPercent = 1.0;                        // Risk % per Trade (Auto mode)
+input double InpBalanceStep = 500.0;                      // Fixed per Balance: balance step ($)
+input double InpBaseLotPerStep = 0.01;                    // Fixed per Balance: lot per step
 input int InpMagicNumber = 20260505;                      // Magic Number
 input int InpMaxSpreadPoints = 30;                        // Max Spread (points)
 
@@ -92,6 +105,8 @@ input int InpPanelUpdateSeconds = 1;                      // Panel Update (secon
 //--- Diagnostics (Jul–Dec bar time only; throttled — see Aurum_*H2* helpers)
 input group "=== DIAGNOSTIC (H2 Jul–Dec) ==="
 input bool InpDiagH2JulDec = true;                        // Log state-change & rejects (Jul–Dec only)
+//--- Phase 3D research: observability vs execution (tester / lab only — default OFF)
+input bool InpInvestigationSignalObservability = false;   // If true: EvaluateAll even when RiskManager halts; NEVER opens/modifies trades while halted
 
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
@@ -157,6 +172,26 @@ string Aurum_RejectReasonText(const ENUM_SIGNAL_REJECT_REASON reason) {
         case SIGNAL_REJECT_SPREAD:               return "SPREAD";
         case SIGNAL_REJECT_MARKET_UPDATE_FAIL:   return "MARKET_UPDATE_FAIL";
         default:                                 return "NONE";
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Map ENUM_SIGNAL_REJECT_REASON → TradeDiag Reason= token (Journal)|
+//+------------------------------------------------------------------+
+string Aurum_RejectReasonToTradeDiagBlocked(const ENUM_SIGNAL_REJECT_REASON reason) {
+    switch(reason) {
+        case SIGNAL_REJECT_NO_CONSENSUS:         return "NoConsensus";
+        case SIGNAL_REJECT_QUALITY_LOW:          return "QualityScoreLow";
+        case SIGNAL_REJECT_REQUIRE_TREND:        return "RequireTrendAlignment";
+        case SIGNAL_REJECT_REQUIRE_KEYLEVEL:     return "RequireKeyLevel";
+        case SIGNAL_REJECT_REQUIRE_MOMENTUM:     return "RequireMomentum";
+        case SIGNAL_REJECT_MAX_POSITIONS:        return "MaxOpenPositions";
+        case SIGNAL_REJECT_MAX_CONSEC_LOSSES:    return "MaxConsecutiveLosses";
+        case SIGNAL_REJECT_RISK_HALT:            return "RiskManager";
+        case SIGNAL_REJECT_TIME_FILTER:          return "TradingHoursFilter";
+        case SIGNAL_REJECT_SPREAD:               return "SpreadTooHigh";
+        case SIGNAL_REJECT_MARKET_UPDATE_FAIL:   return "MarketUpdateFail";
+        default:                                 return "SignalRejected";
     }
 }
 
@@ -259,6 +294,13 @@ int OnInit() {
         return INIT_FAILED;
     }
     
+    //--- Phase 3D: observability mode is tester-only (never on live charts)
+    if(InpInvestigationSignalObservability && !MQLInfoInteger(MQL_TESTER)) {
+        Print("ERROR: InpInvestigationSignalObservability is allowed only in the Strategy Tester");
+        Logger::Deinit();
+        return INIT_FAILED;
+    }
+    
     //--- Create and initialize Market Analyzer
     Print("\n[1/8] Initializing Market Analyzer...");
     g_marketAnalyzer = new MarketAnalyzer();
@@ -319,6 +361,8 @@ int OnInit() {
         Cleanup();
         return INIT_FAILED;
     }
+    //--- Must match Inputs tab: Init() alone used Constants.mqh (e.g. consec=3) — caused misleading backtests vs UI
+    g_riskManager.SetRiskLimitsFromInputs(InpMaxEquityDD, InpMaxConsecutiveLosses, InpMaxDailyLossPct);
     Logger::Info("RiskManager initialized - Circuit breakers active");
     
     //--- Create and initialize Trade Manager
@@ -342,7 +386,8 @@ int OnInit() {
     
     //--- Set EA configuration for panel display
     g_infoPanel.SetConfig(InpLotMethod, InpFixedLot, InpRiskPercent,
-                          InpMagicNumber, InpMinQualityScore, InpMaxOpenPositions);
+                          InpMagicNumber, InpMinQualityScore, InpMaxOpenPositions,
+                          InpBalanceStep, InpBaseLotPerStep);
     
     Logger::Info("InfoPanel initialized - Update: " + IntegerToString(InpPanelUpdateSeconds) + "s");
     
@@ -353,6 +398,11 @@ int OnInit() {
     
     //--- Log configuration
     LogConfiguration();
+    
+    if(InpInvestigationSignalObservability) {
+        Print("*** Phase 3D: InpInvestigationSignalObservability=TRUE — EvaluateAll runs when risk halts; no ExecuteTrade / no ManageOpenPositions while halted (tester only). ***");
+        Logger::Warning("Phase 3D investigation mode: signal observability separated from execution");
+    }
     
     //--- Success
     g_initialized = true;
@@ -368,6 +418,11 @@ int OnInit() {
     Logger::Info("========================================");
     Logger::Info("  INITIALIZATION COMPLETE - READY TO TRADE");
     Logger::Info("========================================");
+#ifdef AURUM_TELEMETRY_T2
+    TelemetryT2_Init();
+    if(TelemetryT2_IsReady())
+        EventSetTimer(TELEMETRY_T2_TIMER_MS);
+#endif
     
     return INIT_SUCCEEDED;
 }
@@ -376,6 +431,10 @@ int OnInit() {
 //| Expert deinitialization function                                 |
 //+------------------------------------------------------------------+
 void OnDeinit(const int reason) {
+#ifdef AURUM_TELEMETRY_T2
+    EventKillTimer();
+    TelemetryT2_Deinit();
+#endif
     Print("!!!!! ONDEINIT CALLED - REASON: ", reason, " !!!!!");
     Logger::Info("========================================");
     Logger::Info("  AURUM SYNAPSE v2.0 - STOPPING");
@@ -427,6 +486,8 @@ void OnTick() {
     g_lastBarTime = currentBarTime;
     g_totalTrades++;  // Count bars processed
     
+    const int diagOpenCount = (g_tradeManager != NULL ? g_tradeManager.CountOpenPositions() : -1);
+    
     const bool h2Diag = Aurum_IsH2DiagnosticMonth(currentBarTime);
     
     //--- DIAGNOSTIC: Log every 10 bars (reduced from every tick to prevent stack issues)
@@ -434,20 +495,26 @@ void OnTick() {
         PrintFormat("[BAR #%d] Processing new bar @ %s", g_totalTrades, TimeToString(currentBarTime, TIME_DATE | TIME_MINUTES));
     }
     
-    //--- 1. Check risk limits (CRITICAL - CHECK FIRST)
-    if(!g_riskManager.CanTrade()) {
+    //--- 1. Risk authorization (execution) — observability may continue in Phase 3D lab mode
+    const bool execRiskAllows = g_riskManager.CanTrade();
+    if(!execRiskAllows) {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_RISK_HALT);
+        TradeDiag_Blocked("RiskManager", _Symbol, 0.0, diagOpenCount);
         if(!h2Diag && g_totalTrades <= 3) {
             string msg = "[BLOCKED] Risk Manager - " + g_riskManager.GetHaltReason();
             Print(msg);
         }
-        UpdatePanel();
-        break;
+        if(!InpInvestigationSignalObservability) {
+            UpdatePanel();
+            break;
+        }
+        // Phase 3D: fall through to market update + EvaluateAll; execution gated below
     }
     
     //--- 2. Check time filter
     if(!IsTimeAllowed()) {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_TIME_FILTER);
+        TradeDiag_Blocked("TradingHoursFilter", _Symbol, 0.0, diagOpenCount);
         if(!h2Diag && g_totalTrades <= 3) {
             Print("[BLOCKED] Time Filter");
         }
@@ -459,6 +526,7 @@ void OnTick() {
     double spread = (SymbolInfoDouble(_Symbol, SYMBOL_ASK) - SymbolInfoDouble(_Symbol, SYMBOL_BID)) / _Point;
     if(spread > InpMaxSpreadPoints) {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_SPREAD);
+        TradeDiag_Blocked("SpreadTooHigh", _Symbol, 0.0, diagOpenCount);
         if(!h2Diag && g_totalTrades <= 3) {
             PrintFormat("[BLOCKED] Spread too wide: %.1f > %d", spread, InpMaxSpreadPoints);
         }
@@ -469,6 +537,7 @@ void OnTick() {
     //--- 4. Update market analysis
     if(!g_marketAnalyzer.Update()) {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_MARKET_UPDATE_FAIL);
+        TradeDiag_Blocked("MarketUpdateFail", _Symbol, 0.0, diagOpenCount);
         Logger::Warning("[ERROR] MarketAnalyzer update failed");
         break;
     }
@@ -530,6 +599,9 @@ void OnTick() {
     double agreementPct = g_signalManager.GetAgreementPercentage();
     const int buyVotes = g_signalManager.GetBuyCount();
     const int sellVotes = g_signalManager.GetSellCount();
+#ifdef AURUM_TELEMETRY_T1
+    double qualityScoreForTelemetry = TELEMETRY_NULL_DOUBLE;
+#endif
     
     if(consensus != SIGNAL_NONE && !h2Diag) {
         PrintFormat("[CONSENSUS] %s detected! Strength: %.2f", EnumToString(consensus), consensusStrength);
@@ -538,15 +610,20 @@ void OnTick() {
     //--- 8. Consensus / quality / execution gate
     if(consensus == SIGNAL_NONE) {
         Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_NO_CONSENSUS, SIGNAL_NONE, 0.0, buyVotes, sellVotes);
+        TradeDiag_Blocked("NoConsensus", _Symbol, 0.0, diagOpenCount);
     } else {
         double qualityScore = g_qualityFilter.CalculateSetupScore(marketState, consensus,
                                                                   consensusStrength, agreementPct);
+#ifdef AURUM_TELEMETRY_T1
+        qualityScoreForTelemetry = qualityScore;
+#endif
         if(!h2Diag) {
             PrintFormat("[QUALITY] Score: %.1f/100 (Min: %d)", qualityScore, InpMinQualityScore);
         }
         
         if(qualityScore < InpMinQualityScore) {
             Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_QUALITY_LOW, consensus, qualityScore, buyVotes, sellVotes);
+            TradeDiag_Blocked("QualityScoreLow", _Symbol, 0.0, diagOpenCount);
         } else {
             ENUM_SIGNAL_REJECT_REASON reqFail = SIGNAL_REJECT_NONE;
             if(!CheckQualityRequirements(marketState, consensus, reqFail)) {
@@ -555,27 +632,44 @@ void OnTick() {
                     PrintFormat("[BLOCKED] Quality requirements not met (%s)", Aurum_RejectReasonText(reqFail));
                 }
             } else {
-                ENUM_SIGNAL_REJECT_REASON posFail = SIGNAL_REJECT_NONE;
-                if(!CanOpenNewPosition(posFail)) {
-                    Aurum_LogH2RejectIfChanged(currentBarTime, posFail, consensus, qualityScore, buyVotes, sellVotes);
-                    if(!h2Diag) {
-                        if(posFail == SIGNAL_REJECT_MAX_POSITIONS)
-                            Print("[BLOCKED] Max positions reached");
-                        else
-                            Print("[BLOCKED] Max consecutive losses reached");
-                    }
+                if(!execRiskAllows) {
+                    // Phase 3D: consensus/quality path visible for research; no new orders while risk halt
+                    Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_RISK_HALT, consensus, qualityScore, buyVotes, sellVotes);
+                    TradeDiag_Blocked("RiskManager", _Symbol, 0.0, diagOpenCount);
                 } else {
-                    if(!h2Diag) {
-                        Print("[TRADE] *** EXECUTING TRADE ***");
+                    ENUM_SIGNAL_REJECT_REASON posFail = SIGNAL_REJECT_NONE;
+                    if(!CanOpenNewPosition(posFail)) {
+                        Aurum_LogH2RejectIfChanged(currentBarTime, posFail, consensus, qualityScore, buyVotes, sellVotes);
+                        if(!h2Diag) {
+                            if(posFail == SIGNAL_REJECT_MAX_POSITIONS)
+                                Print("[BLOCKED] Max positions reached");
+                            else
+                                Print("[BLOCKED] Max consecutive losses reached");
+                        }
+                    } else {
+                        if(!h2Diag) {
+                            Print("[TRADE] *** EXECUTING TRADE ***");
+                        }
+                        ExecuteTrade(consensus, marketState, qualityScore);
                     }
-                    ExecuteTrade(consensus, marketState, qualityScore);
                 }
             }
         }
     }
+#ifdef AURUM_TELEMETRY_T1
+    TelemetryBarRow s_telemetryBarRow;
+    TelemetryCollector_BuildBarRow(currentBarTime, marketState, signals, consensus,
+                                   consensusStrength, agreementPct, qualityScoreForTelemetry,
+                                   execRiskAllows, s_telemetryBarRow);
+    TelemetryRingBuffer_PushCopy(s_telemetryBarRow);
+#ifdef AURUM_TELEMETRY_T2
+    TelemetryT2_EnqueueCopy(s_telemetryBarRow);
+#endif
+#endif
     
-    //--- 9. Manage existing positions (trailing stops, etc)
-    ManageOpenPositions();
+    //--- 9. Manage existing positions (trailing stops, etc) — suppressed during risk halt (no modifies)
+    if(execRiskAllows)
+        ManageOpenPositions();
     
     //--- 10. Update info panel
     UpdatePanel();
@@ -583,6 +677,43 @@ void OnTick() {
     } while(false);
     
     s_inOnTick = false;
+}
+
+#ifdef AURUM_TELEMETRY_T2
+//+------------------------------------------------------------------+
+//| Timer — T2 persistence drain only (cold path)                  |
+//+------------------------------------------------------------------+
+void OnTimer() {
+    TelemetryT2_OnTimerDrain();
+}
+#endif
+
+//+------------------------------------------------------------------+
+//| Trade transaction hook — feed RiskManager on position closes     |
+//+------------------------------------------------------------------+
+void OnTradeTransaction(const MqlTradeTransaction &trans,
+                        const MqlTradeRequest &request,
+                        const MqlTradeResult &result) {
+    if(!g_initialized || g_riskManager == NULL)
+        return;
+    if(trans.type != TRADE_TRANSACTION_DEAL_ADD)
+        return;
+    if(trans.deal == 0)
+        return;
+    if(!HistoryDealSelect(trans.deal))
+        return;
+    if(HistoryDealGetString(trans.deal, DEAL_SYMBOL) != _Symbol)
+        return;
+    if(HistoryDealGetInteger(trans.deal, DEAL_MAGIC) != (long)InpMagicNumber)
+        return;
+    ENUM_DEAL_ENTRY entry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(trans.deal, DEAL_ENTRY);
+    if(entry != DEAL_ENTRY_OUT)
+        return;
+    double profit = HistoryDealGetDouble(trans.deal, DEAL_PROFIT)
+                     + HistoryDealGetDouble(trans.deal, DEAL_SWAP)
+                     + HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
+    bool wasProfit = (profit > 0.0);
+    g_riskManager.OnTradeClosed(wasProfit, profit);
 }
 
 //+------------------------------------------------------------------+
@@ -616,6 +747,17 @@ bool ValidateInputs() {
     if(InpLotMethod == LOT_AUTO && InpRiskPercent <= 0) {
         Print("ERROR: Invalid risk percent: ", InpRiskPercent);
         valid = false;
+    }
+    
+    if(InpLotMethod == LOT_FIXED_PER_BALANCE) {
+        if(InpBalanceStep <= 0.0) {
+            Print("ERROR: InpBalanceStep must be > 0 for Fixed per Balance: ", InpBalanceStep);
+            valid = false;
+        }
+        if(InpBaseLotPerStep <= 0.0) {
+            Print("ERROR: InpBaseLotPerStep must be > 0 for Fixed per Balance: ", InpBaseLotPerStep);
+            valid = false;
+        }
     }
     
     //--- Validate quality score
@@ -667,7 +809,9 @@ bool IsTimeAllowed() {
         default: dayAllowed = false;
     }
     
-    if(!dayAllowed) return false;
+    if(!dayAllowed) {
+        return false;
+    }
     
     //--- Check hour range
     if(dt.hour < InpHourFrom || dt.hour > InpHourTo) {
@@ -682,14 +826,17 @@ bool IsTimeAllowed() {
 //+------------------------------------------------------------------+
 bool CheckQualityRequirements(const MarketState &state, const ENUM_SIGNAL signal, ENUM_SIGNAL_REJECT_REASON &outReason) {
     outReason = SIGNAL_REJECT_NONE;
+    const int diagPos = (g_tradeManager != NULL ? g_tradeManager.CountOpenPositions() : -1);
     //--- Check trend alignment if required
     if(InpRequireTrendAlignment) {
         if(signal == SIGNAL_BUY && state.trendDir != TREND_UP) {
             outReason = SIGNAL_REJECT_REQUIRE_TREND;
+            TradeDiag_Blocked(Aurum_RejectReasonToTradeDiagBlocked(outReason), _Symbol, 0.0, diagPos);
             return false;
         }
         if(signal == SIGNAL_SELL && state.trendDir != TREND_DOWN) {
             outReason = SIGNAL_REJECT_REQUIRE_TREND;
+            TradeDiag_Blocked(Aurum_RejectReasonToTradeDiagBlocked(outReason), _Symbol, 0.0, diagPos);
             return false;
         }
     }
@@ -704,6 +851,7 @@ bool CheckQualityRequirements(const MarketState &state, const ENUM_SIGNAL signal
         //--- Require within 50 pips
         if(minDist > 500 * _Point) {
             outReason = SIGNAL_REJECT_REQUIRE_KEYLEVEL;
+            TradeDiag_Blocked(Aurum_RejectReasonToTradeDiagBlocked(outReason), _Symbol, 0.0, diagPos);
             return false;
         }
     }
@@ -712,10 +860,12 @@ bool CheckQualityRequirements(const MarketState &state, const ENUM_SIGNAL signal
     if(InpRequireMomentum) {
         if(signal == SIGNAL_BUY && state.rsi14 < 50) {
             outReason = SIGNAL_REJECT_REQUIRE_MOMENTUM;
+            TradeDiag_Blocked(Aurum_RejectReasonToTradeDiagBlocked(outReason), _Symbol, 0.0, diagPos);
             return false;
         }
         if(signal == SIGNAL_SELL && state.rsi14 > 50) {
             outReason = SIGNAL_REJECT_REQUIRE_MOMENTUM;
+            TradeDiag_Blocked(Aurum_RejectReasonToTradeDiagBlocked(outReason), _Symbol, 0.0, diagPos);
             return false;
         }
     }
@@ -733,6 +883,7 @@ bool CanOpenNewPosition(ENUM_SIGNAL_REJECT_REASON &rejectOut) {
     if(openCount >= InpMaxOpenPositions) {
         Logger::Warning("Max open positions reached: " + IntegerToString(openCount));
         rejectOut = SIGNAL_REJECT_MAX_POSITIONS;
+        TradeDiag_Blocked("MaxOpenPositions", _Symbol, 0.0, openCount);
         return false;
     }
     
@@ -740,6 +891,7 @@ bool CanOpenNewPosition(ENUM_SIGNAL_REJECT_REASON &rejectOut) {
     if(g_riskManager.GetConsecutiveLosses() >= InpMaxConsecutiveLosses) {
         Logger::Warning("Max consecutive losses reached");
         rejectOut = SIGNAL_REJECT_MAX_CONSEC_LOSSES;
+        TradeDiag_Blocked("MaxConsecutiveLosses", _Symbol, 0.0, openCount);
         return false;
     }
     
@@ -753,6 +905,8 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
     //--- Reentrancy guard: prevent nested trade execution (safety vs callback/event loops)
     static bool s_inExecuteTrade = false;
     if(s_inExecuteTrade) {
+        TradeDiag_Blocked("ExecuteTradeReentry", _Symbol, 0.0,
+                          g_tradeManager != NULL ? g_tradeManager.CountOpenPositions() : -1);
         Print("[GUARD] ExecuteTrade re-entry blocked");
         return;
     }
@@ -767,13 +921,15 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
         InpLotMethod,
         InpRiskPercent,
         InpFixedLot,
-        0.01,  // Fixed per balance (simplified)
+        InpBalanceStep,
+        InpBaseLotPerStep,
         InpMaxRiskPerTrade,
         InpSLPoints
     );
     
     if(lot <= 0) {
         Logger::Error("Invalid lot size calculated: " + DoubleToString(lot, 2));
+        TradeDiag_Blocked("InvalidLotCalculated", _Symbol, lot, g_tradeManager.CountOpenPositions());
         EXEC_TRADE_DONE();
         return;
     }
@@ -851,12 +1007,14 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
     if(signal == SIGNAL_BUY) {
         if(sl >= price || tp <= price) {
             Print("ERROR: Invalid SL/TP for BUY - SL: ", sl, " Price: ", price, " TP: ", tp);
+            TradeDiag_Blocked("InvalidStops", _Symbol, lot, g_tradeManager.CountOpenPositions());
             EXEC_TRADE_DONE();
             return;
         }
     } else {
         if(sl <= price || tp >= price) {
             Print("ERROR: Invalid SL/TP for SELL - SL: ", sl, " Price: ", price, " TP: ", tp);
+            TradeDiag_Blocked("InvalidStops", _Symbol, lot, g_tradeManager.CountOpenPositions());
             EXEC_TRADE_DONE();
             return;
         }
@@ -864,15 +1022,39 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
     
     Print("[TRADE PARAMS] ", EnumToString(signal), " | Price: ", price, " | SL: ", sl, " | TP: ", tp, " | Lot: ", lot);
     
+    double lotDiagRequested = -1.0;
+    if(InpLotMethod == LOT_FIXED)
+        lotDiagRequested = InpFixedLot;
+    else if(InpLotMethod == LOT_FIXED_PER_BALANCE)
+        lotDiagRequested = g_moneyManager.ComputeFixedPerBalanceLot(
+            AccountInfoDouble(ACCOUNT_BALANCE), InpBalanceStep, InpBaseLotPerStep);
+    if(lotDiagRequested >= 0.0)
+        Print("[LOT_DIAG ExecuteTrade] RequestedLot=", DoubleToString(lotDiagRequested, 4),
+              " FinalLot=", DoubleToString(lot, 4),
+              " FreeMargin=", DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2));
+    else
+        Print("[LOT_DIAG ExecuteTrade] Method=", EnumToString(InpLotMethod),
+              " FinalLot=", DoubleToString(lot, 4),
+              " FreeMargin=", DoubleToString(AccountInfoDouble(ACCOUNT_MARGIN_FREE), 2));
+    
+    //--- Structured allow log (margin snapshot only; OpenBuy/OpenSell re-check margin unchanged)
+    double marginReqAllowed = 0.0;
+    const ENUM_ORDER_TYPE otyAllowed = (signal == SIGNAL_BUY ? ORDER_TYPE_BUY : ORDER_TYPE_SELL);
+    const int execOpenCount = g_tradeManager.CountOpenPositions();
+    if(OrderCalcMargin(otyAllowed, _Symbol, lot, price, marginReqAllowed))
+        TradeDiag_Allowed(_Symbol, lot, marginReqAllowed, execOpenCount);
+    
     //--- Execute order
     ulong ticket = 0;
     
     if(signal == SIGNAL_BUY) {
         ticket = g_tradeManager.OpenBuy(lot, sl, tp, (int)qualityScore, 
-                                        "AS2.0_Q" + IntegerToString((int)qualityScore));
+                                        "AS2.0_Q" + IntegerToString((int)qualityScore),
+                                        lotDiagRequested);
     } else {
         ticket = g_tradeManager.OpenSell(lot, sl, tp, (int)qualityScore,
-                                         "AS2.0_Q" + IntegerToString((int)qualityScore));
+                                         "AS2.0_Q" + IntegerToString((int)qualityScore),
+                                         lotDiagRequested);
     }
     
     //--- Handle result
@@ -958,6 +1140,10 @@ void LogConfiguration() {
     Logger::Info("Lot Method: " + EnumToString(InpLotMethod));
     Logger::Info("Fixed Lot: " + DoubleToString(InpFixedLot, 2));
     Logger::Info("Risk %: " + DoubleToString(InpRiskPercent, 1));
+    if(InpLotMethod == LOT_FIXED_PER_BALANCE) {
+        Logger::Info("Fixed per Balance — step: " + DoubleToString(InpBalanceStep, 2) +
+                     " | base lot/step: " + DoubleToString(InpBaseLotPerStep, 4));
+    }
     Logger::Info("Max Risk/Trade: " + DoubleToString(InpMaxRiskPerTrade, 1) + "%");
     Logger::Info("Max Daily Loss: " + DoubleToString(InpMaxDailyLossPct, 1) + "%");
     Logger::Info("Max Equity DD: " + DoubleToString(InpMaxEquityDD, 1) + "%");

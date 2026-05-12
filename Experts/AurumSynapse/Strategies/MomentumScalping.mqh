@@ -24,25 +24,25 @@
 //| Core Concept:                                                    |
 //|   - Ultra-fast scalping (<5 min target = 94-96% WR per QQ data) |
 //|   - Momentum-driven entries (MACD + RSI + Stoch alignment)      |
-//|   - Volatility gate (ATR ratio — Phase 3A tester floor relaxed)   |
-//|   - Golden hour preference (22-23, 08-09 WIT) — strength only    |
-//|   - Volume confirmation (bar0+bar1 max vs avg — tester-safe)     |
+//|   - Volatility gate (ATR ratio — Phase 3B+ T/V ~1.04; RANG ~1.00; CALM ~0.82) |
+//|   - Golden hour preference (22-23, 08-09 WIT) — milder off-hour   |
+//|   - Volume confirmation (bar0+bar1 max vs avg — Phase 3B+ ~1.03×; >= avg×mult)|
 //|                                                                  |
 //| Entry Conditions:                                                |
 //|   BUY:                                                           |
 //|     - Strong bullish momentum (MACD > signal, rising)            |
-//|     - RSI Phase 3A band ~38–85 BUY / ~15–62 SELL (see CalculateSignal)|
+//|     - RSI Phase 3B++ band ~38–92 BUY / ~15–75 SELL (see CalculateSignal)|
 //|     - Stochastic bullish (K > D, K > 20)                         |
-//|     - Volume > ~1.05× average (activation + confirm; bar0+bar1)|
-//|     - ATR ratio > ~1.06 (Phase 3A tester floor)                  |
+//|     - Volume > ~1.03× average (activation + confirm; bar0+bar1)    |
+//|     - ATR ratio > ~1.04 T/V or ~1.00 RANGING or ~0.82 CALM (3B+)    |
 //|     - Preferably during golden hours                             |
 //|                                                                  |
 //|   SELL:                                                          |
 //|     - Strong bearish momentum (MACD < signal, falling)           |
-//|     - RSI Phase 3A band (see CalculateSignal)                    |
+//|     - RSI Phase 3B++ band (see CalculateSignal)                    |
 //|     - Stochastic bearish (K < D, K < 80)                         |
-//|     - Volume > ~1.05× average                                     |
-//|     - ATR ratio > ~1.06                                          |
+//|     - Volume > ~1.03× average                                     |
+//|     - ATR ratio > ~1.04 T/V or ~1.00 RANGING or ~0.82 CALM; bar0|1 bearish |
 //|     - Preferably during golden hours                             |
 //|                                                                  |
 //| Strength Calculation:                                            |
@@ -52,17 +52,18 @@
 //|   +0.10 if volume spike > 1.5× average                           |
 //|   +0.10 if ATR ratio > 1.5 (very active)                         |
 //|   +0.05 if trend aligned                                         |
-//|   -0.30 penalty if NOT in golden hours                           |
+//|   -0.18 penalty if NOT in golden hours (3A+ — H2 / off-hour Q60) |
 //|                                                                  |
-//| Activation: VOLATILE + TRENDING; Phase 3A: volume uses            |
-//|   max(bar0,bar1) vs avg; atr/volume floors lowered for tester.   |
-//| RSI entry bands widened so 2-of-3 momentum is not vetoed.       |
+//| Activation: VOL+TREND+RANGING+CALM (3B). Phase 3B+: softer T/V+RANG+CALM |
+//| atr/vol floors after 3B FY verify still showed Aug–Dec monthly zero.   |
+//| Phase 3B++: BUY RSI ceiling 92 (H2 melt-up veto); SELL bar0|1 bearish;|
+//| vol confirm >= threshold (parity with CheckActivation).           |
 //+------------------------------------------------------------------+
 class MomentumScalping : public BaseStrategy {
 private:
     //--- Strategy-specific settings
-    double           m_volumeMultiplier;       // Phase 3A activation vs avg (~1.05 tester)
-    double           m_minATRRatio;            // Phase 3A ATR ratio floor (~1.06 tester)
+    double           m_volumeMultiplier;       // Phase 3B+ activation vs avg (~1.03)
+    double           m_minATRRatio;            // Phase 3B+ T/V ATR floor (~1.04)
     double           m_strongVolumeMultiplier; // Strong volume (1.5)
     double           m_strongATRRatio;         // Strong ATR ratio (1.5)
     
@@ -76,7 +77,7 @@ private:
     void             AnalyzeMomentum(const MarketState &state);
     bool             IsBullishMomentum(const MarketState &state);
     bool             IsBearishMomentum(const MarketState &state);
-    bool             HasVolumeConfirmation(double multiplier);
+    bool             HasVolumeConfirmation(const MarketState &state, double multiplier);
     int              CountAlignedIndicators(bool bullish);
     double           CalculateStrength(const MarketState &state, ENUM_SIGNAL direction);
     
@@ -98,8 +99,8 @@ public:
 //| Constructor                                                       |
 //+------------------------------------------------------------------+
 MomentumScalping::MomentumScalping(void) :
-    m_volumeMultiplier(1.05),
-    m_minATRRatio(1.06),
+    m_volumeMultiplier(1.03),
+    m_minATRRatio(1.04),
     m_strongVolumeMultiplier(1.5),
     m_strongATRRatio(1.5),
     m_macdBullish(false),
@@ -125,13 +126,15 @@ void MomentumScalping::Init(IndicatorCache* cache, double baseWeight, string sym
     // Call base class init
     BaseStrategy::Init(cache, baseWeight, symbol, tf);
     
-    // Set active regimes (VOLATILE preferred, but can work in TRENDING)
-    ENUM_REGIME regimes[2];
+    // Phase 3A+: RANGING. Phase 3B: CALM — MarketAnalyzer returns CALM before VOL/RANG when ADX<15 & narrow BB (H2 compression).
+    ENUM_REGIME regimes[4];
     regimes[0] = REGIME_VOLATILE;
     regimes[1] = REGIME_TRENDING;
-    SetActiveRegimes(regimes, 2);
+    regimes[2] = REGIME_RANGING;
+    regimes[3] = REGIME_CALM;
+    SetActiveRegimes(regimes, 4);
     
-    Print("MomentumScalping initialized - VOLATILE+TRENDING; Phase 3A volume/ATR/RSI gates (tester rehab)");
+    Print("MomentumScalping initialized - Phase 3B++ signal: BUY RSI<92; SELL bar0|1 bearish; vol confirm >=");
     Print("HIGHEST WEIGHT (1.5) - Primary scalping edge based on QQ analysis");
 }
 
@@ -143,14 +146,24 @@ bool MomentumScalping::CheckActivation(const MarketState &state) {
         return false;
     }
     
-    if(state.atrRatio < m_minATRRatio) {
+    // Phase 3B+: FY Q60 showed Aug–Dec still zero after CALM — relax T/V+RANGING+CALM atr/vol (strategy-local).
+    double minAtr = m_minATRRatio;
+    double volMult = m_volumeMultiplier;
+    if(state.regime == REGIME_CALM) {
+        minAtr = 0.82;
+        volMult = 1.0;  // tick volume > avg (strict > avg*1.0)
+    } else if(state.regime == REGIME_RANGING) {
+        minAtr = 1.00;
+        volMult = 1.02;
+    }
+    if(state.atrRatio < minAtr) {
         return false;
     }
     
     // Phase 3A: bar-0 tick volume is often near zero at bar open in tester — use max(bar0,bar1)
     double avgVolume = GetAverageVolume(20);
     double currentVolume = MathMax(GetVolume(0), GetVolume(1));
-    if(avgVolume == 0 || currentVolume < (avgVolume * m_volumeMultiplier)) {
+    if(avgVolume == 0 || currentVolume < (avgVolume * volMult)) {
         return false;
     }
     
@@ -166,9 +179,9 @@ void MomentumScalping::CalculateSignal(const MarketState &state) {
     
     // Check for bullish momentum scalp
     if(IsBullishMomentum(state)) {
-        if(HasVolumeConfirmation(m_volumeMultiplier)) {
-            // Phase 3A: allow RSI 38–85 so MACD+Stoch can vote when RSI<50 (2-of-3 path)
-            if(state.rsi14 > 38.0 && state.rsi14 < 85.0) {
+        if(HasVolumeConfirmation(state, m_volumeMultiplier)) {
+            // Phase 3B++: raise BUY ceiling (was 85) — strong H2 legs often sit 85–92 with MACD+Stoch still 2-of-3 bull
+            if(state.rsi14 > 38.0 && state.rsi14 < 92.0) {
                 m_signal = SIGNAL_BUY;
                 m_strength = CalculateStrength(state, SIGNAL_BUY);
                 return;
@@ -176,11 +189,10 @@ void MomentumScalping::CalculateSignal(const MarketState &state) {
         }
     }
     
-    // Check for bearish momentum scalp
+    // Check for bearish momentum scalp — Phase 3B++: bar0|bar1 bearish (align bar0|bar1 volume); RSI cap 75
     if(IsBearishMomentum(state)) {
-        if(HasVolumeConfirmation(m_volumeMultiplier)) {
-            // Phase 3A: allow RSI 15–62 so MACD+Stoch bearish can vote when RSI>50
-            if(state.rsi14 > 15.0 && state.rsi14 < 62.0) {
+        if((IsBearishCandle(0) || IsBearishCandle(1)) && HasVolumeConfirmation(state, m_volumeMultiplier)) {
+            if(state.rsi14 > 15.0 && state.rsi14 < 75.0) {
                 m_signal = SIGNAL_SELL;
                 m_strength = CalculateStrength(state, SIGNAL_SELL);
                 return;
@@ -242,15 +254,22 @@ bool MomentumScalping::IsBearishMomentum(const MarketState &state) {
 }
 
 //+------------------------------------------------------------------+
-//| Check volume confirmation                                        |
+//| Check volume confirmation (RANGING cap 1.02; CALM cap 1.0 — 3B+) |
 //+------------------------------------------------------------------+
-bool MomentumScalping::HasVolumeConfirmation(double multiplier) {
+bool MomentumScalping::HasVolumeConfirmation(const MarketState &state, double multiplier) {
     double avgVolume = GetAverageVolume(20);
     double currentVolume = MathMax(GetVolume(0), GetVolume(1));
     
     if(avgVolume == 0) return false;
     
-    return (currentVolume > (avgVolume * multiplier));
+    double mult = multiplier;
+    // Base-path only: keep strong-volume bonus threshold strict
+    if(state.regime == REGIME_CALM && multiplier <= m_volumeMultiplier + 1e-6)
+        mult = MathMin(mult, 1.0);
+    else if(state.regime == REGIME_RANGING && multiplier <= m_volumeMultiplier + 1e-6)
+        mult = MathMin(mult, 1.02);
+    
+    return (currentVolume >= (avgVolume * mult));
 }
 
 //+------------------------------------------------------------------+
@@ -290,7 +309,7 @@ double MomentumScalping::CalculateStrength(const MarketState &state, ENUM_SIGNAL
     }
     
     //--- Bonus 3: Strong volume spike (> 1.5×) adds 0.10
-    if(HasVolumeConfirmation(m_strongVolumeMultiplier)) {
+    if(HasVolumeConfirmation(state, m_strongVolumeMultiplier)) {
         strength += 0.10;
     }
     
@@ -311,9 +330,9 @@ double MomentumScalping::CalculateStrength(const MarketState &state, ENUM_SIGNAL
         strength += 0.05;
     }
     
-    //--- PENALTY 1: NOT in golden hours reduces by 0.30
+    //--- PENALTY 1: NOT in golden hours (3A+: milder — off-hour/H2 strength was over-suppressed at Q60)
     if(!state.isGoldenHour) {
-        strength -= 0.30;  // Strong penalty outside golden hours
+        strength -= 0.18;
     }
     
     //--- Penalty 2: Dead zone reduces strength

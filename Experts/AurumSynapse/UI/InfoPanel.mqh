@@ -42,6 +42,8 @@ private:
     ENUM_LOT_METHOD  m_lotMethod;
     double           m_fixedLot;
     double           m_riskPercent;
+    double           m_balanceStep;
+    double           m_baseLotPerStep;
     int              m_magicNumber;
     int              m_minQualityScore;
     int              m_maxPositions;
@@ -72,7 +74,8 @@ public:
     
     //--- Configuration (call once after Init)
     void             SetConfig(ENUM_LOT_METHOD lotMethod, double fixedLot, double riskPercent,
-                              int magicNumber, int minQuality, int maxPositions);
+                              int magicNumber, int minQuality, int maxPositions,
+                              double balanceStep = 500.0, double baseLotPerStep = 0.01);
     
     //--- Main update method
     void             Update(const MarketState &state,
@@ -104,6 +107,8 @@ InfoPanel::InfoPanel(void) :
     m_lotMethod(LOT_FIXED),
     m_fixedLot(0.01),
     m_riskPercent(1.0),
+    m_balanceStep(500.0),
+    m_baseLotPerStep(0.01),
     m_magicNumber(0),
     m_minQualityScore(50),
     m_maxPositions(5)
@@ -134,13 +139,16 @@ bool InfoPanel::Init(int updateIntervalSeconds = 1) {
 //| Set EA configuration for display                                 |
 //+------------------------------------------------------------------+
 void InfoPanel::SetConfig(ENUM_LOT_METHOD lotMethod, double fixedLot, double riskPercent,
-                          int magicNumber, int minQuality, int maxPositions) {
+                          int magicNumber, int minQuality, int maxPositions,
+                          double balanceStep, double baseLotPerStep) {
     m_lotMethod = lotMethod;
     m_fixedLot = fixedLot;
     m_riskPercent = riskPercent;
     m_magicNumber = magicNumber;
     m_minQualityScore = minQuality;
     m_maxPositions = maxPositions;
+    m_balanceStep = balanceStep;
+    m_baseLotPerStep = baseLotPerStep;
 }
 
 //+------------------------------------------------------------------+
@@ -261,9 +269,15 @@ string InfoPanel::FormatSettingsColumn(void) {
     
     //--- Lot method
     string lotMethodStr = "";
-    if(m_lotMethod == LOT_FIXED) lotMethodStr = "Fixed (" + DoubleToString(m_fixedLot, 2) + " lot)";
-    else if(m_lotMethod == LOT_AUTO) lotMethodStr = "Auto (" + DoubleToString(m_riskPercent, 1) + "% risk)";
-    else lotMethodStr = "Fixed per Balance";
+    if(m_lotMethod == LOT_FIXED)
+        lotMethodStr = "Fixed (" + DoubleToString(m_fixedLot, 2) + " lot)";
+    else if(m_lotMethod == LOT_AUTO)
+        lotMethodStr = "Automatic (" + DoubleToString(m_riskPercent, 1) + "% risk)";
+    else if(m_lotMethod == LOT_FIXED_PER_BALANCE)
+        lotMethodStr = "Fixed per Balance ($" + DoubleToString(m_balanceStep, 0) + " / " +
+                       DoubleToString(m_baseLotPerStep, 2) + " lot)";
+    else
+        lotMethodStr = EnumToString(m_lotMethod);
     
     settings += "Lot Method: " + lotMethodStr + "\n";
     settings += "Magic Number: " + IntegerToString(m_magicNumber) + "\n";

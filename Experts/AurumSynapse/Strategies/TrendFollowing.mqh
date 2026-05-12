@@ -16,8 +16,8 @@
 //| Trend Following Strategy                                         |
 //|                                                                  |
 //| Logic:                                                           |
-//|   BUY:  ADX > 25, Price > EMA50, EMA21 > EMA50, RSI > 50        |
-//|   SELL: ADX > 25, Price < EMA50, EMA21 < EMA50, RSI < 50        |
+//|   BUY:  ADX gate (regime-adaptive — Phase 3B), Price > EMA50, EMA21 > EMA50, RSI > 50 |
+//|   SELL: same ADX gate, Price < EMA50, EMA21 < EMA50, RSI < 50        |
 //|                                                                  |
 //| Strength Calculation (0.0 - 1.0):                               |
 //|   Base: 0.5 (50%)                                                |
@@ -27,7 +27,7 @@
 //|   +0.1 if market structure confirms (HH/HL or LL/LH)             |
 //|   +0.1 if at key level (support/resistance bounce)               |
 //|                                                                  |
-//| Activation: TRENDING regime (ADX > 25, directional movement)     |
+//| Activation: TRENDING+VOLATILE+RANGING+CALM (Phase 3B H2). RANGING ADX 18–25; CALM uses atrRatio (ADX<15). |
 //+------------------------------------------------------------------+
 class TrendFollowing : public BaseStrategy {
 private:
@@ -83,12 +83,15 @@ void TrendFollowing::Init(IndicatorCache* cache, double baseWeight, string symbo
     // Call base class init
     BaseStrategy::Init(cache, baseWeight, symbol, tf);
     
-    // Set active regimes (only TRENDING)
-    ENUM_REGIME regimes[1];
+    // Phase 3A+: TRENDING + VOLATILE. Phase 3B: +RANGING +CALM (H2 compression / ADX≤25 deadlock).
+    ENUM_REGIME regimes[4];
     regimes[0] = REGIME_TRENDING;
-    SetActiveRegimes(regimes, 1);
+    regimes[1] = REGIME_VOLATILE;
+    regimes[2] = REGIME_RANGING;
+    regimes[3] = REGIME_CALM;
+    SetActiveRegimes(regimes, 4);
     
-    Print("TrendFollowing initialized - Active in TRENDING regime only");
+    Print("TrendFollowing initialized - Phase 3B H2: TREND+VOL+RANG+CALM; ADX>=25 T/V, >=18 RANG, CALM atr>=0.78; SELL bar0|1 bearish");
 }
 
 //+------------------------------------------------------------------+
@@ -96,20 +99,25 @@ void TrendFollowing::Init(IndicatorCache* cache, double baseWeight, string symbo
 //| Returns true if market is in TRENDING regime with ADX > 25       |
 //+------------------------------------------------------------------+
 bool TrendFollowing::CheckActivation(const MarketState &state) {
-    // Must be in TRENDING regime
-    if(state.regime != REGIME_TRENDING) {
+    // Phase 3A+: base-class regime check. Phase 3B: +RANGING +CALM.
+    if(!IsActiveInCurrentRegime(state))
         return false;
+    
+    // Phase 3B (H2): MarketAnalyzer RANGING uses ADX 15–25 — prior ADX>=25 made RANGING almost never active.
+    // CALM uses ADX<15 — ADX>=25 impossible; use light atr floor instead (compression participation).
+    if(state.regime == REGIME_CALM) {
+        if(state.atrRatio < 0.78)
+            return false;
+        return true;
+    }
+    if(state.regime == REGIME_RANGING) {
+        if(state.adx < 18.0)
+            return false;
+        return true;
     }
     
-    // ADX must indicate a trend
-    if(state.adx < m_adxThresholdMin) {
+    if(state.adx < m_adxThresholdMin)
         return false;
-    }
-    
-    // Additional activation check: price must not be flat
-    if(state.trendDir == TREND_FLAT) {
-        return false;
-    }
     
     return true;
 }
@@ -126,11 +134,13 @@ void TrendFollowing::CalculateSignal(const MarketState &state) {
         return;
     }
     
-    // Check bearish setup
+    // Check bearish setup — Phase 3A+: bar-1 bearish. Phase 3B: bar0|bar1 (H2 snap; same family as MomScalp 3B++).
     if(CheckBearishConditions(state)) {
-        m_signal = SIGNAL_SELL;
-        m_strength = CalculateStrength(state, false);
-        return;
+        if(IsBearishCandle(0) || IsBearishCandle(1)) {
+            m_signal = SIGNAL_SELL;
+            m_strength = CalculateStrength(state, false);
+            return;
+        }
     }
     
     // No valid setup
@@ -142,10 +152,14 @@ void TrendFollowing::CalculateSignal(const MarketState &state) {
 //| Check bullish trend following conditions                         |
 //+------------------------------------------------------------------+
 bool TrendFollowing::CheckBullishConditions(const MarketState &state) {
-    // 1. ADX confirms trend strength (already checked in activation)
-    if(state.adx < m_adxThresholdMin) {
+    // 1. ADX — Phase 3B: match CheckActivation (CALM skips; RANGING min 18; else 25)
+    double minAdx = m_adxThresholdMin;
+    if(state.regime == REGIME_RANGING)
+        minAdx = 18.0;
+    else if(state.regime == REGIME_CALM)
+        minAdx = -1.0;
+    if(minAdx >= 0.0 && state.adx < minAdx)
         return false;
-    }
     
     // 2. Price above EMA50 (trend filter)
     double ema50 = state.ema50;
@@ -184,10 +198,13 @@ bool TrendFollowing::CheckBullishConditions(const MarketState &state) {
 //| Check bearish trend following conditions                         |
 //+------------------------------------------------------------------+
 bool TrendFollowing::CheckBearishConditions(const MarketState &state) {
-    // 1. ADX confirms trend strength
-    if(state.adx < m_adxThresholdMin) {
+    double minAdx = m_adxThresholdMin;
+    if(state.regime == REGIME_RANGING)
+        minAdx = 18.0;
+    else if(state.regime == REGIME_CALM)
+        minAdx = -1.0;
+    if(minAdx >= 0.0 && state.adx < minAdx)
         return false;
-    }
     
     // 2. Price below EMA50 (trend filter)
     double ema50 = state.ema50;

@@ -33,9 +33,13 @@
 //|   +0.10 if multiple swing levels broken                          |
 //|   +0.10 if trend aligned                                         |
 //|                                                                  |
-//| Activation: TRENDING or VOLATILE regimes                         |
+//| Activation: TRENDING, VOLATILE, RANGING (Phase 3A+ — range breaks)|
 //| Phase 3A: swing "nearest" = time-nearest pivot (array[0]);       |
 //| confirmation uses max(bar0,bar1) vol/body (new-bar open timing).  |
+//| Phase 3A+: IsActiveInCurrentRegime; atrRatio floor 0.10; SELL     |
+//| bar-1 bearish (bull-tape noise filter).                            |
+//| Phase 3B H2 continuity: SELL bar0|bar1 bearish; dead-zone str    |
+//| penalty T/V only; volume gate skipped if avgVolume==0 (tester).   |
 //+------------------------------------------------------------------+
 class Breakout : public BaseStrategy {
 private:
@@ -119,26 +123,25 @@ void Breakout::Init(IndicatorCache* cache, double baseWeight, string symbol, ENU
     // Call base class init
     BaseStrategy::Init(cache, baseWeight, symbol, tf);
     
-    // Set active regimes (TRENDING and VOLATILE)
-    ENUM_REGIME regimes[2];
+    // Phase 3A+: RANGING included — swing breaks in consolidation tape (H2 participation)
+    ENUM_REGIME regimes[3];
     regimes[0] = REGIME_TRENDING;
     regimes[1] = REGIME_VOLATILE;
-    SetActiveRegimes(regimes, 2);
+    regimes[2] = REGIME_RANGING;
+    SetActiveRegimes(regimes, 3);
     
-    Print("Breakout initialized - Active in TRENDING and VOLATILE regimes");
+    Print("Breakout initialized - TRENDING+VOLATILE+RANGING; Phase 3B H2 cont. (SELL bearish bar0|1; deadZone str T/V; vol skip if avg=0)");
 }
 
 //+------------------------------------------------------------------+
 //| Check if strategy should be active                               |
 //+------------------------------------------------------------------+
 bool Breakout::CheckActivation(const MarketState &state) {
-    // Active in TRENDING or VOLATILE regimes
-    if(state.regime != REGIME_TRENDING && state.regime != REGIME_VOLATILE) {
+    if(!IsActiveInCurrentRegime(state))
         return false;
-    }
     
-    // Need some volatility vs average (floor kept low for rehabilitation / XAU M5)
-    if(state.atrRatio < 0.12) {
+    // Need some volatility vs average (0.10 — Phase 3A+ slight relax vs 0.12 for marginal H2/vol tape)
+    if(state.atrRatio < 0.10) {
         return false;
     }
     
@@ -162,9 +165,9 @@ void Breakout::CalculateSignal(const MarketState &state) {
         }
     }
     
-    // Check for bearish breakout
+    // Check for bearish breakout — Phase 3B H2: bar0|bar1 bearish (parity SupplyDemand / MR)
     if(IsBearishBreakout(state)) {
-        if(IsBreakoutConfirmed(state, SIGNAL_SELL)) {
+        if((IsBearishCandle(1) || IsBearishCandle(0)) && IsBreakoutConfirmed(state, SIGNAL_SELL)) {
             m_signal = SIGNAL_SELL;
             m_strength = CalculateStrength(state, SIGNAL_SELL);
             return;
@@ -283,10 +286,8 @@ bool Breakout::IsBreakoutConfirmed(const MarketState &state, ENUM_SIGNAL directi
     
     // 2. Volume: max(bar0, bar1) vs average — bar0 tick volume often near zero at bar start
     double avgVolume = CalculateAverageVolume(20);
-    if(avgVolume == 0) return false;
-    
     double currentVolume = MathMax(GetVolume(0), GetVolume(1));
-    if(currentVolume < (avgVolume * m_volumeMultiplier)) {
+    if(avgVolume > 0.0 && currentVolume < (avgVolume * m_volumeMultiplier)) {
         return false;
     }
     
@@ -352,14 +353,14 @@ double Breakout::CalculateStrength(const MarketState &state, ENUM_SIGNAL directi
     //--- Bonus 1: Strong volume spike (> 1.5× average) adds 0.15
     double avgVolume = CalculateAverageVolume(20);
     if(avgVolume > 0) {
-        double currentVolume = GetVolume(0);
+        double currentVolume = MathMax(GetVolume(0), GetVolume(1));
         if(currentVolume > (avgVolume * 1.5)) {
             strength += 0.15;
         }
     }
     
-    //--- Bonus 2: Large candle (> ATR) adds 0.15
-    double candleSize = GetCandleBody(0);
+    //--- Bonus 2: Large candle (> ATR) adds 0.15 — max(bar0,bar1) for new-bar parity
+    double candleSize = MathMax(GetCandleBody(0), GetCandleBody(1));
     if(candleSize > atr) {
         strength += 0.15;
     }
@@ -399,8 +400,9 @@ double Breakout::CalculateStrength(const MarketState &state, ENUM_SIGNAL directi
         strength += 0.05;
     }
     
-    //--- Penalty: Dead zone reduces strength
-    if(IsDeadZone(state)) {
+    //--- Penalty: Dead zone — Phase 3B H2: only TRENDING/VOLATILE (RANGING home tape; Q60 survival)
+    if(IsDeadZone(state) &&
+       (state.regime == REGIME_TRENDING || state.regime == REGIME_VOLATILE)) {
         strength *= 0.7;
     }
     

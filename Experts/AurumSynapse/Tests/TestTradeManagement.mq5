@@ -16,6 +16,8 @@
 input ENUM_LOT_METHOD InpLotMethod = LOT_FIXED;        // Lot sizing method
 input double InpFixedLot = 0.01;                       // Fixed lot size
 input double InpRiskPercent = 1.0;                     // Risk percent (auto mode)
+input double InpBalanceStep = 500.0;                   // Fixed per Balance: balance step ($)
+input double InpBaseLotPerStep = 0.01;                 // Fixed per Balance: lot per step
 input double InpMaxDailyLossPct = 5.0;                 // Max daily loss %
 input double InpMaxEquityDDPct = 12.0;                 // Max equity DD %
 input int InpMagicNumber = 20260505;                   // Magic number
@@ -28,6 +30,8 @@ TradeManager *g_tradeMgr = NULL;
 //--- Test state
 datetime g_lastBarTime = 0;
 int g_testCount = 0;
+
+void RunFixedPerBalanceFormulaValidation();
 
 //+------------------------------------------------------------------+
 //| Expert initialization                                             |
@@ -87,6 +91,8 @@ int OnInit() {
         return INIT_FAILED;
     }
     Print("✓ Trade Manager initialized");
+    
+    RunFixedPerBalanceFormulaValidation();
     
     Print("\n========================================");
     Print("  ALL COMPONENTS INITIALIZED!");
@@ -163,17 +169,17 @@ void OnTick() {
     double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
     
     //--- Method 1: Fixed lot
-    double lot1 = g_moneyMgr.CalculateLotSize(LOT_FIXED, 0, 0.01, 0, 0, 0);
+    double lot1 = g_moneyMgr.CalculateLotSize(LOT_FIXED, 0, 0.01, InpBalanceStep, InpBaseLotPerStep, 0, 0);
     Print("Fixed Lot: ", lot1);
     
     //--- Method 2: Auto (risk-based)
-    double lot2 = g_moneyMgr.CalculateLotSize(LOT_AUTO, InpRiskPercent, 0, 0, 3.0, slDistancePoints);
+    double lot2 = g_moneyMgr.CalculateLotSize(LOT_AUTO, InpRiskPercent, 0, InpBalanceStep, InpBaseLotPerStep, 3.0, slDistancePoints);
     Print("Auto Lot (", InpRiskPercent, "% risk): ", lot2);
     double riskAmount = g_moneyMgr.CalculateRiskAmount(lot2, slDistancePoints);
     Print("  Risk Amount: $", DoubleToString(riskAmount, 2));
     
     //--- Method 3: Fixed per balance
-    double lot3 = g_moneyMgr.CalculateLotSize(LOT_FIXED_PER_BALANCE, 0, 0, 0.01, 0, 0);
+    double lot3 = g_moneyMgr.CalculateLotSize(LOT_FIXED_PER_BALANCE, 0, 0, InpBalanceStep, InpBaseLotPerStep, 0, 0);
     Print("Fixed per Balance: ", lot3);
     
     //--- Show broker limits
@@ -232,8 +238,8 @@ void TestOpenBuyOrder() {
     }
     
     //--- Calculate lot size
-    double lot = g_moneyMgr.CalculateLotSize(InpLotMethod, InpRiskPercent, 
-                                               InpFixedLot, 0.01, 3.0, 100.0);
+    double lot = g_moneyMgr.CalculateLotSize(InpLotMethod, InpRiskPercent,
+                                               InpFixedLot, InpBalanceStep, InpBaseLotPerStep, 3.0, 100.0);
     
     //--- Calculate SL/TP (example: 100 points SL, 200 points TP)
     double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
@@ -251,6 +257,50 @@ void TestOpenBuyOrder() {
     } else {
         Print("❌ TEST BUY FAILED");
     }
+}
+
+//+------------------------------------------------------------------+
+//| Validate LOT_FIXED_PER_BALANCE formula (step=500, base=0.01)    |
+//+------------------------------------------------------------------+
+void RunFixedPerBalanceFormulaValidation() {
+    const double step = 500.0;
+    const double base = 0.01;
+    double balances[5];
+    balances[0] = 500;
+    balances[1] = 1000;
+    balances[2] = 1500;
+    balances[3] = 5000;
+    balances[4] = 10000;
+    double expect[5];
+    expect[0] = 0.01;
+    expect[1] = 0.02;
+    expect[2] = 0.03;
+    expect[3] = 0.10;
+    expect[4] = 0.20;
+    
+    Print("\n--- LOT_FIXED_PER_BALANCE formula validation ---");
+    bool allOk = true;
+    for(int i = 0; i < 5; i++) {
+        double r = g_moneyMgr.ComputeFixedPerBalanceLot(balances[i], step, base);
+        bool rowOk = (MathAbs(r - expect[i]) < 1e-8);
+        if(!rowOk) allOk = false;
+        Print("  Balance ", balances[i], " -> ", DoubleToString(r, 4),
+              " (expect ", DoubleToString(expect[i], 4), ") ", rowOk ? "OK" : "FAIL");
+    }
+    double e2700 = g_moneyMgr.ComputeFixedPerBalanceLot(2700, step, base);
+    double e4900 = g_moneyMgr.ComputeFixedPerBalanceLot(4900, step, base);
+    double e5100 = g_moneyMgr.ComputeFixedPerBalanceLot(5100, step, base);
+    bool ex = (MathAbs(e2700 - 0.05) < 1e-8 && MathAbs(e4900 - 0.09) < 1e-8 && MathAbs(e5100 - 0.10) < 1e-8);
+    if(!ex) allOk = false;
+    Print("  Balance 2700 -> ", DoubleToString(e2700, 4), " (expect 0.05) ", (MathAbs(e2700 - 0.05) < 1e-8 ? "OK" : "FAIL"));
+    Print("  Balance 4900 -> ", DoubleToString(e4900, 4), " (expect 0.09) ", (MathAbs(e4900 - 0.09) < 1e-8 ? "OK" : "FAIL"));
+    Print("  Balance 5100 -> ", DoubleToString(e5100, 4), " (expect 0.10) ", (MathAbs(e5100 - 0.10) < 1e-8 ? "OK" : "FAIL"));
+    Print("  Summary: ", allOk ? "ALL CHECKS PASSED" : "SOME CHECKS FAILED");
+    
+    //--- End-to-end sizing on current tester balance (prints [FPB_DIAG] from MoneyManager)
+    double liveFpb = g_moneyMgr.CalculateLotSize(LOT_FIXED_PER_BALANCE, 0, 0, step, base, 0, 0);
+    Print("[FPB_VALIDATION] CalculateLotSize(LOT_FIXED_PER_BALANCE) at current balance -> ",
+          DoubleToString(liveFpb, 4), " (see [FPB_DIAG] line above)");
 }
 
 //+------------------------------------------------------------------+

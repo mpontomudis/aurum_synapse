@@ -5,6 +5,10 @@
 #ifndef __AURUM_ANALYTICS_CONFIG_MQH__
 #define __AURUM_ANALYTICS_CONFIG_MQH__
 
+//--- Phase S — version lock (bump on intentional Stream A / parser contract change)
+#define ANALYTICS_ENGINE_VERSION         "3A-S1"
+#define ANALYTICS_STREAM_A_REPORT_VERSION "3A-R1"
+
 //--- Mirror T2 storage root (do not include TelemetryConfig.mqh — T2 ifdef guard).
 #define ANALYTICS_TELEMETRY_FOLDER       "AurumSynapse\\telemetry\\"
 #define ANALYTICS_TELEMETRY_FILE_GLOB    "AurumSynapse\\telemetry\\AS_TELEMETRY_V1_*.csv"

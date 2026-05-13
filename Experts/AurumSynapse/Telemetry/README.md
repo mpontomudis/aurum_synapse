@@ -9,9 +9,9 @@
 | **T0** | **COMPLETE** |
 | **T1** passive telemetry | **COMPLETE + VALIDATED** (TEST B — OFF vs ON non-interference) |
 | **T2** shadow persistence | **COMPLETE + VALIDATED** (TEST C — CSV + `FILE_COMMON` + rotation + no EA drift) |
-| **Phase 3A Stream A** (offline analytics) | **COMPLETE + VALIDATED** — `Tests/TestTelemetryAnalytics.mq5`; canonical sample Journal: `rows=15974`, `rejects=0`; `[ANALYTICS_FILEOPEN]` `FileIsExist=true`, `GetLastError=0` |
+| **Phase 3A Stream A** (offline analytics) | **COMPLETE + VALIDATED** — `Tests/TestTelemetryAnalytics.mq5`; canonical sample Journal: **`[Analytics] AS_TELEMETRY_V1 files=1 rows=15974 rejects=0 PASS`** + **`[TestTelemetryAnalytics] done rows=15974 rejects=0`** (corpus-dependent; see **`Baselines/Telemetry_V1/TEST_C_2025/`**) |
 
-**Schema / CSV (`AS_TELEMETRY_V1`):** **STABLE / VERSION-LOCKED** — no breaking column/header/semantic changes without a new schema version and migration note (`TelemetrySchema.md` + `Tests/POST_COMPLETION_VALIDATION_ROADMAP.md`, section **`### PHASE 3A — COMPLETION FREEZE (official) — 2026-05-12`**).
+**Schema / CSV (`AS_TELEMETRY_V1`):** **STABLE / VERSION-LOCKED** — no breaking column/header/semantic changes without a new schema version and migration note (`TelemetrySchema.md`, **`Telemetry/TELEMETRY_CONTRACT.md`**, `Tests/POST_COMPLETION_VALIDATION_ROADMAP.md`, section **`### PHASE 3A — COMPLETION FREEZE (official) — 2026-05-12`** and **`### PHASE S — STABILIZATION & BASELINE FREEZE — 2026-05-10`**).
 
 **Still out of scope:** non-adaptive, read-only analytics vs execution; **no** execution mutation or self-modifying behavior from telemetry or Stream A.
 
@@ -53,6 +53,7 @@
 | `TelemetryRotation.mqh` | Path / day / size rotation helpers |
 | `TelemetryPersistence.mqh` | T2 init / enqueue / timer drain / deinit flush |
 | `TelemetrySchema.md` | Column order + T2 storage notes |
+| `TELEMETRY_CONTRACT.md` | **Official** column index / nulls / session / regime proxy / quality / versions |
 
 ## Tests
 

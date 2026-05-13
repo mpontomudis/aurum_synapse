@@ -30,5 +30,6 @@
 //|    schema id in col 1 for self-describing fragments.              |
 //+------------------------------------------------------------------+
 // Full canonical header string: see **TelemetrySchema.md** (Bar row).
+// Full column contract (indices, nulls, analytics semantics): **Telemetry/TELEMETRY_CONTRACT.md**.
 
 #endif // __AURUM_TELEMETRY_CONTRACTS_MQH__

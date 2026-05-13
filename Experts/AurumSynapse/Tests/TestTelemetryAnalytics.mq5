@@ -11,7 +11,6 @@
 
 //+------------------------------------------------------------------+
 int OnInit() {
-    Print("=== ANALYTICS BUILD ID 20260512_FORENSIC_V2 ===");
     string report = "";
     ulong totalBars = 0;
     ulong parseErrors = 0;

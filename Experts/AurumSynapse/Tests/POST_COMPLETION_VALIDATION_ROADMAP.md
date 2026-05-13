@@ -582,7 +582,7 @@ flowchart TB
 | **Objective** | Offline scan of **`FILE_COMMON`** `AurumSynapse\telemetry\AS_TELEMETRY_V1_*.csv` → aggregated **REGIME_PROXY** (derived from ADX / `volatility_ratio`), session buckets, quality bins, strategy×regime descriptive matrix. **No** profit factor / trade outcomes (Stream B deferred). |
 | **Delivered** | Folder **`TelemetryAnalytics/*.mqh`**, **`Tests/TestTelemetryAnalytics.mq5`**. |
 | **STATUS (freeze)** | **COMPLETE + VALIDATED** — see **`### PHASE 3A — COMPLETION FREEZE (official) — 2026-05-12`** below. |
-| **Validation** | **PASSED (2026-05-12).** MetaEditor compile + Strategy Tester: line-oriented CSV read + parser path; Journal **`[TestTelemetryAnalytics] done rows=15974 rejects=0`** (validated corpus; row count varies with CSV set) + **`[ANALYTICS_FILEOPEN]`** `FileIsExist=true`, `GetLastError=0` on representative open. |
+| **Validation** | **PASSED (2026-05-12).** MetaEditor compile + Strategy Tester: line-oriented CSV read + parser path; Journal **`[TestTelemetryAnalytics] done rows=15974 rejects=0`** (validated corpus; row count varies with CSV set). **Phase S (2026-05-10):** production Journal line **`[Analytics] AS_TELEMETRY_V1 files=N rows=… rejects=… PASS|FAIL`** (see **`### PHASE S — STABILIZATION & BASELINE FREEZE — 2026-05-10`**). |
 | **Rollback** | Delete `TelemetryAnalytics/` + test script; no EA rebuild required unless docs touched. |
 
 ### PHASE 3A — COMPLETION FREEZE (official) — 2026-05-12
@@ -612,7 +612,7 @@ flowchart TB
 | Field | Record |
 |-------|--------|
 | **Status** | **PASSED** |
-| **Final validated sample (Journal)** | **`[ANALYTICS_FILEOPEN]`** `FileIsExist=true`, `GetLastError=0` · **`[TestTelemetryAnalytics] done rows=15974 rejects=0`** |
+| **Final validated sample (Journal)** | **`[Analytics] AS_TELEMETRY_V1 files=1 rows=15974 rejects=0 PASS`** (corpus-dependent counts) · **`[TestTelemetryAnalytics] done rows=15974 rejects=0`** |
 | **Validated components** | CSV discovery; **`FILE_COMMON`** path resolution; line-oriented CSV reader (`FILE_BIN` byte read → physical lines); parser normalization + schema alignment; aggregation engine; regime / session / quality / strategy-participation analytics |
 
 ### Root cause history — Stream A ingest (resolved; **path resolution only**)
@@ -631,6 +631,21 @@ These were **ruled out** for the final Stream A failure mode after instrumentati
 - **Schema mismatch** / column misalignment as the driver of `rows=0 rejects=364` in the last failure window (parser never reached until `FileOpen` succeeded).
 - **Stale binary / agent cache** as the sole explanation (build-ID and path traces showed real execution; the dominant bug was **`relPath`** construction, not silent absence of `Print`).
 - **Final classified root cause for the 364× `file_open` reject window:** **PATH RESOLUTION ONLY** (directory prefix missing on stored find names).
+
+### PHASE S — STABILIZATION & BASELINE FREEZE — 2026-05-10
+
+**Scope:** telemetry contract stability, documentation, baseline artifacts, and version locking only. **No** EA execution, signal, consensus, risk, or trade-behavior changes.
+
+| Step | Deliverable |
+|------|-------------|
+| **S1** | Removed forensic Journal tags (`[ANALYTICS_FILEOPEN]`, `[ANALYTICS_FILEFIND]`, `[ANALYTICS_REJECT_STAGE]`, `[ANALYTICS_FORENSIC]`, `[TelemetryCSV forensic ONCE]`, build-ID spam). Production summary: **`[Analytics] AS_TELEMETRY_V1 files=… rows=… rejects=… PASS\|FAIL`**. |
+| **S2** | **`TELEMETRY_SCHEMA_VERSION`** (`"V1"`) in `Telemetry/TelemetryVersion.mqh`; writer `TelemetryWriter_CsvHeaderLine()` remains single source of truth; **`TelemetryCsvV1_ExpectedColumns()`** stays derived from that header. |
+| **S3** | **`Telemetry/TELEMETRY_CONTRACT.md`** — full column index table + session / regime proxy / quality / strategy-slot / consensus semantics. |
+| **S4** | **`Baselines/Telemetry_V1/TEST_C_2025/`** — canonical artifact pointers + **`REGRESSION_FROZEN.md`**. |
+| **S5** | **`ANALYTICS_ENGINE_VERSION`** / **`ANALYTICS_STREAM_A_REPORT_VERSION`** in `TelemetryAnalytics/AnalyticsConfig.mqh`; report header echoes telemetry + analytics + report versions. |
+| **S6** | Frozen Stream A regression expectations documented under baseline folder (analytics rows / rejects; EA TEST C tab parity unchanged from prior freeze). |
+
+**Rollback:** revert `TelemetryAnalytics/AnalyticsAggregator.mqh`, `CsvTelemetryReader.mqh`, `AnalyticsConfig.mqh`, `Telemetry/TelemetryVersion.mqh`, `Tests/TestTelemetryAnalytics.mq5`, docs under `Telemetry/` and `Baselines/`; recompile `Tests/TestTelemetryAnalytics.mq5`.
 
 ---
 

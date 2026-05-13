@@ -10,6 +10,8 @@
 #define TELEMETRY_SCHEMA_ID_ASCII     "AS_TELEMETRY_V1"
 #define TELEMETRY_SCHEMA_MAJOR        1
 #define TELEMETRY_SCHEMA_MINOR        0
+//--- Human-readable freeze tag (must match MAJOR for breaking-change policy)
+#define TELEMETRY_SCHEMA_VERSION       "V1"
 
 //--- Philosophy (see Telemetry/TelemetrySchema.md):
 // - Bump MAJOR for breaking column reorder / semantic change.

@@ -43,71 +43,6 @@ bool CsvTelemetry_ReadPhysicalLine(const int fh, string &outLine) {
     return (StringLen(outLine) > 0);
 }
 
-static bool g_csvForensicFirstRejectDone = false;
-static string g_csvParseFailStage = "";
-
-//+------------------------------------------------------------------+
-//| Mute built-in first-reject prints (e.g. analytics uses its own).  |
-//+------------------------------------------------------------------+
-void CsvTelemetry_ForensicSuppressBuiltinOncePrints(void) {
-    g_csvForensicFirstRejectDone = true;
-}
-
-//+------------------------------------------------------------------+
-void CsvTelemetry_ForensicResetBuiltinOncePrints(void) {
-    g_csvForensicFirstRejectDone = false;
-}
-
-//+------------------------------------------------------------------+
-string CsvTelemetry_LastParseFailStage(void) {
-    return g_csvParseFailStage;
-}
-
-//+------------------------------------------------------------------+
-//| First rejected row only — full raw line + tokenization snapshot. |
-//+------------------------------------------------------------------+
-void CsvTelemetry_ForensicFirstRejectOnce(const string rawLine,
-                                          const string &tok[],
-                                          const int tokCount,
-                                          const string stage) {
-    if(g_csvForensicFirstRejectDone)
-        return;
-    g_csvForensicFirstRejectDone = true;
-
-    const int expectedCols = TelemetryCsvV1_ExpectedColumns();
-    string c0 = "";
-    string c1 = "";
-    string c2 = "";
-    string c3 = "";
-    string c4 = "";
-    if(tokCount > 0)
-        c0 = tok[0];
-    if(tokCount > 1)
-        c1 = tok[1];
-    if(tokCount > 2)
-        c2 = tok[2];
-    if(tokCount > 3)
-        c3 = tok[3];
-    if(tokCount > 4)
-        c4 = tok[4];
-
-    string schemaTrim = c0;
-    StringTrimLeft(schemaTrim);
-    StringTrimRight(schemaTrim);
-
-    Print("[TelemetryCSV forensic ONCE] stage=", stage);
-    Print("RAW=", rawLine);
-    Print("TOKENS=", IntegerToString(tokCount));
-    Print("COL0=", c0);
-    Print("COL1=", c1);
-    Print("COL2=", c2);
-    Print("COL3=", c3);
-    Print("COL4=", c4);
-    Print("EXPECTED_COLS=", IntegerToString(expectedCols));
-    Print("StringSplit delimiter ushort=", (int)TELEMETRY_CSV_FIELD_SEP, " (comma ASCII 44)");
-    Print("SCHEMA_COL0_trimmed=", schemaTrim);
-}
-
 //+------------------------------------------------------------------+
 //| Expected logical column count = split(TelemetryWriter header).   |
 //+------------------------------------------------------------------+
@@ -207,40 +142,27 @@ bool CsvTelemetry_PrepareFieldsFromLine(const string lineIn, string &outParts[])
         line = StringSubstr(line, 1);
     string raw[];
     const int n = StringSplit(line, TELEMETRY_CSV_FIELD_SEP, raw);
-    if(n < 1) {
-        CsvTelemetry_ForensicFirstRejectOnce(line, raw, n, "prepare_empty_split");
+    if(n < 1)
         return false;
-    }
     CsvTelemetry_TrimParts(raw);
     const int need = TelemetryCsvV1_ExpectedColumns();
-    if(n < need) {
-        CsvTelemetry_ForensicFirstRejectOnce(line, raw, n, "prepare_n_lt_expected");
+    if(n < need)
         return false;
-    }
-    if(!CsvTelemetry_NormalizeColumnCount(raw, need, outParts)) {
-        CsvTelemetry_ForensicFirstRejectOnce(line, raw, n, "prepare_normalize_failed");
+    if(!CsvTelemetry_NormalizeColumnCount(raw, need, outParts))
         return false;
-    }
     return true;
 }
 
 //+------------------------------------------------------------------+
-bool CsvTelemetry_ParseDataRow(string &parts[], TelemetryCsvRow &row, const string rawLine) {
+bool CsvTelemetry_ParseDataRow(string &parts[], TelemetryCsvRow &row) {
     ZeroMemory(row);
     row.valid = false;
-    g_csvParseFailStage = "";
     const int need = TelemetryCsvV1_ExpectedColumns();
-    if(ArraySize(parts) != need) {
-        g_csvParseFailStage = "parse_size_mismatch";
-        CsvTelemetry_ForensicFirstRejectOnce(rawLine, parts, ArraySize(parts), "parse_size_mismatch");
+    if(ArraySize(parts) != need)
         return false;
-    }
     CsvTelemetry_TrimString(parts[0]);
-    if(parts[0] != TELEMETRY_SCHEMA_ID_ASCII) {
-        g_csvParseFailStage = "parse_schema_mismatch";
-        CsvTelemetry_ForensicFirstRejectOnce(rawLine, parts, ArraySize(parts), "parse_schema_mismatch");
+    if(parts[0] != TELEMETRY_SCHEMA_ID_ASCII)
         return false;
-    }
 
     row.adx = CsvTelemetry_ParseDouble(parts[TCOL_ADX], row.null_adx);
     row.volatility_ratio = CsvTelemetry_ParseDouble(parts[TCOL_VOL_RATIO], row.null_vol);

@@ -4,6 +4,8 @@
 
 **Freeze (2026-05-12):** **`AS_TELEMETRY_V1`** is **STABLE / VERSION-LOCKED** for T1/T2 + Phase 3A Stream A. No breaking header or column-order changes without **`AS_TELEMETRY_V2`** (or later) and migration notes in this file + `Tests/POST_COMPLETION_VALIDATION_ROADMAP.md` (**`### PHASE 3A — COMPLETION FREEZE (official) — 2026-05-12`**).
 
+**Full column contract (index / types / nulls / analytics semantics):** **`Telemetry/TELEMETRY_CONTRACT.md`** (Phase S — 2026-05-10).
+
 - **`AS_TELEMETRY_V1`**: first frozen layout for bar-aligned research exports.
 - **Minor** additive change: append **new columns at end** only; parsers ignore unknown tail.
 - **Major** breaking change: new schema id **`AS_TELEMETRY_V2`**; never silently rename mid-column semantics.

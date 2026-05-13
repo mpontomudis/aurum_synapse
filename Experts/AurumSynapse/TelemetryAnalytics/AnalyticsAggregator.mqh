@@ -12,49 +12,6 @@
 #include "QualityAnalytics.mqh"
 #include "StrategyFitness.mqh"
 
-static bool g_analyticsForensicPrinted = false;
-static int g_analyticsFileOpenDiagSerial = 0;
-
-//+------------------------------------------------------------------+
-string AnalyticsAggregator_ForensicTokenAt(const string &tok[], const int i) {
-    if(i < 0 || i >= ArraySize(tok))
-        return "";
-    return tok[i];
-}
-
-//+------------------------------------------------------------------+
-void AnalyticsAggregator_ForensicPrintOnce(const string stage,
-                                           const string rawLine,
-                                           const string &tokSrc[],
-                                           const int tokenCount,
-                                           const int normalizedCols,
-                                           const string schemaToken) {
-    // TEMP: every call logs ENTER before one-shot guard (proves invocation vs UI truncation).
-    Print("[ANALYTICS_FORENSIC_ENTER]");
-    if(g_analyticsForensicPrinted)
-        return;
-    g_analyticsForensicPrinted = true;
-
-    const int expected = TelemetryCsvV1_ExpectedColumns();
-    Print("[ANALYTICS_FORENSIC]");
-    Print("stage=", stage);
-    Print("raw_line=", rawLine);
-    Print("token_count=", IntegerToString(tokenCount));
-    Print("expected_cols=", IntegerToString(expected));
-    Print("normalized_cols=", IntegerToString(normalizedCols));
-    Print("schema_token=", schemaToken);
-    Print("token0=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 0));
-    Print("token1=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 1));
-    Print("token2=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 2));
-    Print("token3=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 3));
-    Print("token4=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 4));
-    Print("token5=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 5));
-    Print("token6=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 6));
-    Print("token7=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 7));
-    Print("token8=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 8));
-    Print("token9=", AnalyticsAggregator_ForensicTokenAt(tokSrc, 9));
-}
-
 //+------------------------------------------------------------------+
 void AnalyticsAggregator_SortPaths(string &paths[]) {
     const int n = ArraySize(paths);
@@ -87,29 +44,18 @@ string AnalyticsAggregator_CommonRelPathFromFindName(const string fnFromFind) {
 void AnalyticsAggregator_CollectCsvPaths(string &paths[]) {
     ArrayResize(paths, 0);
     string fn = "";
-    Print("[ANALYTICS_FILEFIND] glob=", ANALYTICS_TELEMETRY_FILE_GLOB, " FILE_COMMON");
     const long handle = FileFindFirst(ANALYTICS_TELEMETRY_FILE_GLOB, fn, FILE_COMMON);
-    if(handle == INVALID_HANDLE) {
-        Print("[ANALYTICS_FILEFIND] FileFindFirst INVALID_HANDLE GetLastError=", IntegerToString(GetLastError()));
+    if(handle == INVALID_HANDLE)
         return;
-    }
-    int idx = 0;
-    Print("[ANALYTICS_FILEFIND] FileFindFirst name=", fn);
     while(true) {
         const int n = ArraySize(paths);
         ArrayResize(paths, n + 1);
         paths[n] = AnalyticsAggregator_CommonRelPathFromFindName(fn);
-        if(idx < 3)
-            Print("[ANALYTICS_FILEFIND] idx=", IntegerToString(idx), " raw_name=", fn, " stored_relPath=", paths[n]);
-        idx++;
         if(!FileFindNext(handle, fn))
             break;
-        if(idx < 3)
-            Print("[ANALYTICS_FILEFIND] FileFindNext name=", fn);
     }
     FileFindClose(handle);
     AnalyticsAggregator_SortPaths(paths);
-    Print("[ANALYTICS_FILEFIND] total_matched=", IntegerToString(ArraySize(paths)));
 }
 
 //+------------------------------------------------------------------+
@@ -121,24 +67,8 @@ void AnalyticsAggregator_ProcessFile(const string relPath,
                                      ulong &totalBars,
                                      ulong &parseErrors,
                                      ulong &skippedHeader) {
-    g_analyticsFileOpenDiagSerial++;
-    const bool loudDiag = (g_analyticsFileOpenDiagSerial <= 1);
-    const bool existsPre = FileIsExist(relPath, FILE_COMMON);
-    if(loudDiag) {
-        Print("[ANALYTICS_FILEOPEN] relPath=", relPath);
-        Print("[ANALYTICS_FILEOPEN] flags=FILE_READ|FILE_BIN|FILE_ANSI|FILE_COMMON");
-        Print("[ANALYTICS_FILEOPEN] FileIsExist=", existsPre ? "true" : "false");
-    }
-    ResetLastError();
     const int fh = FileOpen(relPath, FILE_READ | FILE_BIN | FILE_ANSI | FILE_COMMON);
-    const int errPost = (int)GetLastError();
-    if(loudDiag)
-        Print("[ANALYTICS_FILEOPEN] GetLastError=", IntegerToString(errPost));
     if(fh == INVALID_HANDLE) {
-        Print("[ANALYTICS_FILEOPEN] FAIL serial=", IntegerToString(g_analyticsFileOpenDiagSerial),
-              " relPath=", relPath, " FileIsExist=", existsPre ? "true" : "false",
-              " GetLastError=", IntegerToString(errPost));
-        Print("[ANALYTICS_REJECT_STAGE] stage=file_open");
         parseErrors++;
         return;
     }
@@ -154,26 +84,6 @@ void AnalyticsAggregator_ProcessFile(const string relPath,
             line = StringSubstr(line, 1);
         string parts[];
         if(!CsvTelemetry_PrepareFieldsFromLine(line, parts)) {
-            string work = line;
-            CsvTelemetry_TrimString(work);
-            string raw[];
-            const int nRaw = StringSplit(work, TELEMETRY_CSV_FIELD_SEP, raw);
-            CsvTelemetry_TrimParts(raw);
-            const int needCols = TelemetryCsvV1_ExpectedColumns();
-            string normTmp[];
-            int normN = 0;
-            if(nRaw >= needCols && CsvTelemetry_NormalizeColumnCount(raw, needCols, normTmp))
-                normN = ArraySize(normTmp);
-            string stg = "prepare_normalize_failed";
-            if(nRaw < 1)
-                stg = "prepare_empty_split";
-            else if(nRaw < needCols)
-                stg = "prepare_n_lt_expected";
-            string sch = "";
-            if(nRaw > 0)
-                sch = raw[0];
-            AnalyticsAggregator_ForensicPrintOnce(stg, line, raw, nRaw, normN, sch);
-            Print("[ANALYTICS_REJECT_STAGE] stage=prepare");
             parseErrors++;
             continue;
         }
@@ -182,16 +92,7 @@ void AnalyticsAggregator_ProcessFile(const string relPath,
             continue;
         }
         TelemetryCsvRow row;
-        if(!CsvTelemetry_ParseDataRow(parts, row, line)) {
-            string stg = CsvTelemetry_LastParseFailStage();
-            if(stg == "")
-                stg = "parse_unknown";
-            const int pc = ArraySize(parts);
-            string sch = "";
-            if(pc > 0)
-                sch = parts[0];
-            AnalyticsAggregator_ForensicPrintOnce(stg, line, parts, pc, pc, sch);
-            Print("[ANALYTICS_REJECT_STAGE] stage=parse");
+        if(!CsvTelemetry_ParseDataRow(parts, row)) {
             parseErrors++;
             continue;
         }
@@ -222,9 +123,6 @@ int AnalyticsAggregator_MaxRegimeBars(const RegimeAnalyticsState &reg) {
 void AnalyticsAggregator_Run(string &report,
                                ulong &outTotalBars,
                                ulong &outParseErrors) {
-    CsvTelemetry_ForensicSuppressBuiltinOncePrints();
-    g_analyticsForensicPrinted = false;
-    g_analyticsFileOpenDiagSerial = 0;
     outTotalBars = 0;
     outParseErrors = 0;
     ulong skippedHeader = 0;
@@ -243,6 +141,15 @@ void AnalyticsAggregator_Run(string &report,
     const int nfiles = ArraySize(paths);
 
     report = "=== PHASE 3A — SHADOW TELEMETRY ANALYTICS (Stream A) ===\n";
+    report += "Telemetry schema: ";
+    report += TELEMETRY_SCHEMA_VERSION;
+    report += " (";
+    report += TELEMETRY_SCHEMA_ID_ASCII;
+    report += ")  Analytics engine: ";
+    report += ANALYTICS_ENGINE_VERSION;
+    report += "  Report format: ";
+    report += ANALYTICS_STREAM_A_REPORT_VERSION;
+    report += "\n";
     report += "Source: FILE_COMMON glob ";
     report += ANALYTICS_TELEMETRY_FILE_GLOB;
     report += "\n";
@@ -267,6 +174,11 @@ void AnalyticsAggregator_Run(string &report,
     report += "Header rows skipped: ";
     report += DoubleToString((double)skippedHeader, 0);
     report += "\n";
+
+    const string journalStatus = (outParseErrors > 0 ? "FAIL" : "PASS");
+    Print("[Analytics] ", TELEMETRY_SCHEMA_ID_ASCII, " files=", IntegerToString(nfiles),
+          " rows=", IntegerToString(outTotalBars), " rejects=", IntegerToString(outParseErrors),
+          " ", journalStatus);
 
     report += "\n--- REGIME_PROXY (derived from ADX / vol_ratio; not ENUM_REGIME) ---\n";
     for(int i = 0; i < REGIME_PROXY_COUNT; i++) {
@@ -346,7 +258,6 @@ void AnalyticsAggregator_Run(string &report,
     report += "\n--- SHADOW INSIGHTS (observational only; no execution) ---\n";
     if(outTotalBars < 1) {
         report += "No telemetry rows ingested. Generate T2 CSV under Common Files, then re-run.\n";
-        CsvTelemetry_ForensicResetBuiltinOncePrints();
         return;
     }
     const int mr = AnalyticsAggregator_MaxRegimeBars(reg);
@@ -354,7 +265,6 @@ void AnalyticsAggregator_Run(string &report,
     report += RegimeProxy_Name((ENUM_REGIME_PROXY)mr);
     report += ".\n";
     report += "This report does not include profit factor or trade outcomes (Stream B deferred).\n";
-    CsvTelemetry_ForensicResetBuiltinOncePrints();
 }
 
 #endif // __AURUM_ANALYTICS_AGGREGATOR_MQH__

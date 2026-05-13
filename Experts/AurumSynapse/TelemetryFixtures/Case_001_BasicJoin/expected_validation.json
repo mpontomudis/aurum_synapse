@@ -1,0 +1,8 @@
+{
+  "case_id": "Case_001_BasicJoin",
+  "expected_rows": 1,
+  "expected_status": "OK",
+  "expected_sha256": "648b6c950081e4e660401801aaec2a322029bfd1afe51ac06be59acda2f036bb",
+  "expected_join_behavior": "J1-DEALTIME-BACKWARD-BAR_SINGLE_BAR",
+  "deterministic_notes": "UTC epoch integers; one telemetry bar; deal after bar open; join backward to same bar; no randomness; no locale"
+}

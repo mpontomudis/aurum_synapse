@@ -10,6 +10,7 @@
 | **Telemetry CSV sample** | At least one `AS_TELEMETRY_V1_*.csv` under Common `Files\AurumSynapse\telemetry\` | Terminal Common Files tree |
 | **Stream A analytics report** | Journal + stdout from `Tests/TestTelemetryAnalytics.mq5` after ingest | Journal export |
 | **Tester `.set`** | Locked inputs for the run | Repo: `Tests/BacktestScripts/BacktestConfig.set` (adjust copy per your locked profile) |
+| **Join-validation golden harness** | Strategy Tester / `OnInit` — `Tests/TestTelemetryJoinValidation.mq5` after copying `Experts/AurumSynapse/TelemetryFixtures/` → Common (`Case_001` / `Case_002` **PASS** as of **2026-05-10**; see `TelemetryAnalytics/PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`) |
 | **Parser validation** | `rejects=0` on validated corpus; see `REGRESSION_FROZEN.md` | This folder |
 
 ## Row-count expectation

@@ -13,7 +13,7 @@
 
 **Document purpose:** Freeze engineering decisions that are expensive to reverse after data is produced.
 
-**Progress (2026-05-10):** Decisions in this checklist (backward-only hybrid join, `ORPHAN_DEAL`, `JOINED_SLIM` null policy) are **exercised in goldens**: `Case_001_BasicJoin` + `Case_002_OrphanDeal` **PASS** (`Tests/TestTelemetryJoinValidation.mq5`, **exact** string compare). **Full** `TelemetryDealJoiner` + `HistorySelect` pipeline remains **out of scope** for this checklist’s “no large-scale implementation” rule until fixture maturity milestones complete.
+**Progress (2026-05-10):** Decisions in this checklist (backward-only hybrid join, `ORPHAN_DEAL`, `JOINED_SLIM` null policy) are **exercised in goldens**: `Case_001_BasicJoin` + `Case_002_OrphanDeal` + **`Case_003_DuplicateCandidateJoin`** **PASS** (`Tests/TestTelemetryJoinValidation.mq5`, **exact** string compare). **Full** `TelemetryDealJoiner` + `HistorySelect` pipeline remains **out of scope** for this checklist’s “no large-scale implementation” rule until fixture maturity milestones complete.
 
 ---
 

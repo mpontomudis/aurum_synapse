@@ -1,0 +1,2 @@
+d_ticket,d_symbol,d_magic,d_time_utc,d_volume,d_profit,d_type,d_entry,d_position_id,d_price,d_commission,d_swap,d_reason
+900005,XAUUSD,20260505,1735690000,0.10000000,42.00000000,0,0,700005,2650.40000000,-1.10000000,-0.30000000,4

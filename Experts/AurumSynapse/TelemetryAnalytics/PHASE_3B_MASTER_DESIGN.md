@@ -7,7 +7,7 @@
 **Phase 3A reference:** Stream A — bar-native descriptive analytics (`TelemetryAnalytics/*`, `Tests/TestTelemetryAnalytics.mq5`)  
 **Authority:** This document defines **Phase 3B scope only**. It does **not** authorize adaptive AI, live feedback into execution, or schema changes to telemetry V1.
 
-**Implementation status (2026-05-10):** **Validation foundation operational** — golden **`JOINED_SLIM`** rows + `Tests/TestTelemetryJoinValidation.mq5` prove causal backward-only join and **`ORPHAN_DEAL`** under **byte-identical** fixture compare (`TelemetryFixtures/`, `PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`). **Production-scale** `TelemetryDealJoiner` / `HistorySelect` exporter / PF–toxicity reports remain **future work** (see roadmap “AFTER fixture maturity”).
+**Implementation status (2026-05-10):** **Validation foundation operational** — golden **`JOINED_SLIM`** rows + `Tests/TestTelemetryJoinValidation.mq5` prove causal backward-only join, **`ORPHAN_DEAL`**, and **multi-row `MAX(bar_utc ≤ deal)`** selection under **byte-identical** fixture compare (`TelemetryFixtures/`, `PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`). **Production-scale** `TelemetryDealJoiner` / `HistorySelect` exporter / PF–toxicity reports remain **future work** (see roadmap “AFTER fixture maturity”).
 
 ---
 

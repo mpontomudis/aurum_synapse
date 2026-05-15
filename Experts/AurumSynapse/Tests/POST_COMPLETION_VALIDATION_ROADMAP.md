@@ -5,7 +5,7 @@
 **Status:** Phase 1 complete — **Phase 2** — **§2.4 Require sweep ✅** (`2.4.A`–`2.4.D` logged); **FY net-max lock** still **`2.2.D`** (Q**60**, all Require **false**) — **P0:** **§3.8** **MomentumScalp** **Aug–Dec** silence + **`2.4.C`** Inputs verify *(**§3.1 TrendFollowing** **VERIFIED CORE** — **§3.9** **462**-row lock **`InpMaxSpreadPoints = 50`** + **Phase 3D** contamination **rejected** — see **§Test 3.1** + **PHASE 3D**)* — **CHECKPOINT 3.10** **COMPLETE** (**May 11, 2026**): **V1 production lock** **TF+BO**; **`SupplyDemand`** **ensemble-offender** → **Phase 5** forensic (**PHASE 4A** triple capture **superseded** by pairwise matrix — **see CHECKPOINT 3.10**); **Phase 4** **rollup** **May 11, 2026**: **4.1** **INCONCLUSIVE** · **4.2** **PASS behavioral** · **4.3** **PASS behavioral** **post-fix** · **4.4** **PASS** — **PARTIAL** — **see** **PHASE 4** **checklist**; **Phase 5** — **CHECKPOINT 5.1 — TF+BO Q-sweep** (**Q55/Q60/Q65**) **logged** (**Q60** **optimum** — **see** **Phase 5** **below** **Phase 5A**); **CHECKPOINT 3.12** **session** **forensics** (**S4/S5**) **logged**; **CHECKPOINT 3.13** **Trade execution diagnostics** (`Core/TradeDiag.mqh`, **`[TRADE_BLOCKED]`** / **`[TRADE_ALLOWED]`**) **shipped** — see **ENGINEERING LOCK §D**; **GATE-0** **§ SAFE DEVELOPMENT FOUNDATION** (pre–**STEP 1A** telemetry) **documented**; **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** spec: passive **`AS_TELEMETRY_V1`**, T0–T3) **documented**  
 **Last Updated:** May 11, 2026 — **Lot sizing / execution engineering** (**`LOT_SIZE_MAX_BASE`** cap scope, **`LOT_FIXED_PER_BALANCE`** + **`InpBalanceStep`** / **`InpBaseLotPerStep`**, **`ENUM_LOT_METHOD`** order + **preset migration** — see **ENGINEERING LOCK — Lot sizing & execution**); **CHECKPOINT 3.12** **Session Regime Continuity Forensics** (**TF+BO**, **Q65**, **TEST S4/S5** **WIT** **windows**) **logged**; **CHECKPOINT 4C** **weekday** **hardening** **forensics** **(W1–W3**, **TF+BO**, **Asia** **00→07** **WIT**, **Q65**); **CHECKPOINT 5.1 — TF+BO Quality Sensitivity Sweep** (**Q55/Q60/Q65**); **Phase 4.3** consec **post-fix**; **4.1** daily loss Mar **2025**; **4.4** position limit; **4.2** equity DD; **CHECKPOINT 3.10** complete; **§Test 3.1** spread lock; **§3.1** **462** / **§3.2** **398** / **§3.4** **479**; **§ ENGINEERING LOCK §E** — **FPB vs low trade count** **operational audit** (external **TF+BO** lab: time filter **ON**, **$500** deposit, step **500** / **0.01** — **~20** positions, **session/weekday** concentration — **rank `Reason=`** before blaming FPB formula); **§ SAFE DEVELOPMENT FOUNDATION** (**GATE-0** — backup / rollback / stable core); **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** — passive **`AS_TELEMETRY_V1`**, T0–T3, non-interference contract — before regime engine)
 
-**Addendum (2026-05-10 — telemetry-roadmap Phase 3B, join validation):** **VALIDATION FOUNDATION ESTABLISHED** — `Case_001_BasicJoin` / `Case_002_OrphanDeal` **PASS** (`Tests/TestTelemetryJoinValidation.mq5`); golden fixtures + **byte-identical** regression; **`ORPHAN_DEAL`** + causal backward-only policy validated; **`CANONICAL_RUNTIME_SERIALIZATION_POLICY_V1`** + **`PHASE_3B_FIXTURE_DEPLOYMENT_POLICY_V1`** in `TelemetryAnalytics/PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`. **Next fixtures:** `Case_003_DuplicateCandidateJoin` → `Case_004_FutureLeakProtection` → `Case_005_MissingTelemetryRow`. Production **`JoinedTradeRecord`** builder + rollup/survivability/toxicity analytics **after fixture maturity**. **Adaptive AI / governance / auto-orchestration** — **not started**; **out-of-scope** until deterministic join + analytics layer matures.
+**Addendum (2026-05-10 — telemetry-roadmap Phase 3B, join validation):** **GOLDEN FIXTURE SUITE V1 COMPLETE (2026-05-10)** — `Case_001_BasicJoin` through **`Case_010_TimezoneEdge_StaticOffset`** **PASS** deterministically (`Tests/TestTelemetryJoinValidation.mq5`); golden fixtures + **byte-identical** regression; backward-only **`MAX(bar_utc ≤ d_time_utc)`**; **`ORPHAN_DEAL`**; duplicate-candidate / duplicate-ticket / gap / future-leak guards; partial-close + position rollup annotations + multi-context attribution + UTC edge / static-offset **metadata** policy frozen in **`TelemetryAnalytics/PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`** (**§A1–A10**). **Milestone tag:** `PHASE_3B_GOLDEN_FIXTURE_SUITE_COMPLETE`. **Next (planned):** freeze suite V1 as baseline; production **`JoinedTradeRecord`** join exporter + **`POSITION_ROLLUP_V1`** + survivability / toxicity analytics **after** explicit spec; **Adaptive AI / governance** — **not started**; **out-of-scope** until deterministic join + analytics layer matures.
 
 ---
 
@@ -664,7 +664,7 @@ Aurum Synapse **now includes** (all **read-only / observational** toward executi
 5. Regime observational intelligence (proxy labels from telemetry fields)
 6. Strategy participation analytics (descriptive matrix)
 7. Quality-distribution analytics and session bucketing
-8. **Deterministic join-validation harness** (telemetry-roadmap **Phase 3B**): `Tests/TestTelemetryJoinValidation.mq5` + `TelemetryFixtures/Case_001_BasicJoin`, `Case_002_OrphanDeal` — **read-only**; **PASS** as of **2026-05-10**; **no** execution mutation
+8. **Deterministic join-validation harness** (telemetry-roadmap **Phase 3B**): `Tests/TestTelemetryJoinValidation.mq5` + `TelemetryFixtures/Case_001_BasicJoin` … **`Case_010_TimezoneEdge_StaticOffset`** — **read-only**; **Golden Fixture Suite V1 COMPLETE** (**2026-05-10**, all cases **PASS**); **no** execution mutation; milestone tag **`PHASE_3B_GOLDEN_FIXTURE_SUITE_COMPLETE`**
 
 **Still true by design:** **non-adaptive** analytics, **no** execution mutation, **no** self-modifying behavior, **no** consensus/strategy weight changes from Stream A.
 
@@ -672,43 +672,54 @@ Aurum Synapse **now includes** (all **read-only / observational** toward executi
 
 > **Naming disambiguation:** Elsewhere in this roadmap, **Phase 3B** often means **strategy H2 continuity / per-strategy verification** (TrendFollowing, Breakout, etc.). The sections below are **telemetry / analytics roadmap Phase 3B** — **deal ↔ telemetry join** (`AS_JOINED_V1` / **`JOINED_SLIM`**). These are **different scopes**; use file paths and headings to avoid ambiguity.
 
-#### Telemetry roadmap Phase 3B — Deal join (**current position**)
+#### Telemetry roadmap Phase 3B — Deal join (**Golden Fixture Suite V1 — COMPLETE**)
 
-**CURRENT IMPLEMENTATION POSITION:** The project has moved from **conceptual join architecture** (design-only) to **deterministic validated intelligence infrastructure**: a **reproducible harness** (`Tests/TestTelemetryJoinValidation.mq5`), **`FILE_COMMON`** golden fixtures under `Experts/AurumSynapse/TelemetryFixtures/Case_*`, and **strict string-identical** validation against runtime serialization — **without** mutating the EA execution / trading path.
+**CURRENT IMPLEMENTATION POSITION:** **Frozen baseline (2026-05-10).** The project has **deterministic validated intelligence infrastructure** for deal↔telemetry join: a **reproducible harness** (`Tests/TestTelemetryJoinValidation.mq5`), **`FILE_COMMON`** golden fixtures under `Experts/AurumSynapse/TelemetryFixtures/Case_001` … **`Case_010`**, and **strict string-identical** validation against runtime serialization — **without** mutating the EA execution / trading path.
 
 | Foundation pillar | Status (2026-05-10) |
 |-------------------|---------------------|
-| **Deterministic join validation** | **Operational** — `TelemetryAnalytics/JoinValidationPrototype.mqh` (prototype; not production-scale join engine) |
-| **Golden fixture regression** | **Operational** |
+| **Deterministic join validation** | **Frozen V1** — `TelemetryAnalytics/JoinValidationPrototype.mqh` (prototype; not production-scale join engine) |
+| **Golden fixture regression** | **Frozen V1** — Cases **001–010** **PASS** |
 | **FILE_COMMON deployment policy** | **Frozen** — `PHASE_3B_FIXTURE_DEPLOYMENT_POLICY_V1` |
 | **Canonical runtime serialization** | **Frozen** — `CANONICAL_RUNTIME_SERIALIZATION_POLICY_V1` |
-| **Strict regression compare** | **Operational** — detects **byte-level** drift (including `TELEMETRY_NULL_DOUBLE` / `DoubleToString` policy) |
+| **Strict regression compare** | **Frozen V1** — detects **byte-level** drift (including `TELEMETRY_NULL_DOUBLE` / `DoubleToString` policy) |
 | **Causal backward-only join policy** | **Validated** — `Case_001_BasicJoin` **PASS** |
 | **`ORPHAN_DEAL` semantics** | **Validated** — `Case_002_OrphanDeal` **PASS** |
+| **Multi-candidate `MAX(bar_utc)`** | **Validated** — `Case_003_DuplicateCandidateJoin` **PASS** |
+| **Future-bar causal filter** | **Validated** — `Case_004_FutureLeakProtection` **PASS** |
+| **Missing telemetry gap (no synthetic fill)** | **Validated** — `Case_005_MissingTelemetryRow` **PASS** |
+| **Duplicate `d_ticket` canonical row** | **Validated** — `Case_006_DuplicateDealTicket` **PASS** |
+| **Partial-close lifecycle (deal-grain)** | **Validated** — `Case_007_PartialCloseLifecycle` **PASS** |
+| **Lifecycle rollup annotations (`x_lifecycle_*`)** | **Validated** — `Case_008_PositionRollup` **PASS** |
+| **Multi-deal position attribution** | **Validated** — `Case_009_MultiDealPositionAttribution` **PASS** |
+| **UTC edge + static offset metadata** | **Validated** — `Case_010_TimezoneEdge_StaticOffset` **PASS** |
 
-**Golden case status**
+**Golden case status (Suite V1)**
 
 | Case | Result |
 |------|--------|
 | `Case_001_BasicJoin` | **PASS** |
 | `Case_002_OrphanDeal` | **PASS** |
+| `Case_003_DuplicateCandidateJoin` | **PASS** |
+| `Case_004_FutureLeakProtection` | **PASS** |
+| `Case_005_MissingTelemetryRow` | **PASS** |
+| `Case_006_DuplicateDealTicket` | **PASS** |
+| `Case_007_PartialCloseLifecycle` | **PASS** |
+| `Case_008_PositionRollup` | **PASS** |
+| `Case_009_MultiDealPositionAttribution` | **PASS** |
+| `Case_010_TimezoneEdge_StaticOffset` | **PASS** |
 
 #### SESSION SUMMARY — JOIN VALIDATION FOUNDATION (2026-05-10)
 
-- **Succeeded:** Telemetry **V1** freeze respected; **`AS_JOINED_V1` / `JOINED_SLIM`** column layout exercised end-to-end on fixtures; **FILE_COMMON** read-only harness; backward-only join + **`ORPHAN_DEAL`** single-row emission; **byte-identical** expected vs actual line compare.
+- **Succeeded:** Telemetry **V1** freeze respected; **`AS_JOINED_V1` / `JOINED_SLIM`** column layout exercised end-to-end on fixtures; **FILE_COMMON** read-only harness; backward-only join + **`ORPHAN_DEAL`** + **multi-candidate `MAX(bar_utc)`** + future-leak + gap + duplicate policies + lifecycle + attribution + UTC edge; **byte-identical** expected vs actual line compare.
 - **Learned:** Golden `expected_joined.csv` must mirror **MQL5 runtime output** for every numeric token (`TELEMETRY_NULL_DOUBLE` is **not** a tidy decimal literal). Operator **`Common\Files\AurumSynapse\TelemetryFixtures\**` must be **re-copied** from the repo after golden edits or tests **false-fail** while logic is correct.
 - **Root cause (historical `line_mismatch`):** Stale or hand-rounded **fixture bytes** vs **`DoubleToString(..., 8)`** — not defective join policy.
 
-#### NEXT — fixture maturity (sequenced)
+#### NEXT — post Suite V1 (planned; not part of golden harness)
 
-1. **`Case_003_DuplicateCandidateJoin`** — duplicate / collision policy (tickets, deterministic tie-break).
-2. **`Case_004_FutureLeakProtection`** — explicit negative guard: forbid `j_bar_utc > d_time_utc` under regression.
-3. **`Case_005_MissingTelemetryRow`** — gap / `MISSING_TELEMETRY` vs `ORPHAN_DEAL` distinction per frozen policy.
-
-#### AFTER fixture maturity (**not started**)
-
-- Production-grade **`JoinedTradeRecord`** / join CSV exporter (multi-bar index, bounded lookback, batch writer).
-- Lifecycle attribution; **position rollup** (`POSITION_ROLLUP_V1`-class artifact); survivability analytics; toxicity analytics; capital pressure analytics — per **`PHASE_3B_MASTER_DESIGN.md`** / **`PHASE_3B_DATASET_FINALIZATION.md`**.
+1. **Freeze Golden Fixture Suite V1** as regression baseline (tag: **`PHASE_3B_GOLDEN_FIXTURE_SUITE_COMPLETE`**).
+2. **Production-grade join engine** / **`JoinedTradeRecord`** exporter (bounded lookback, batch writer) — **separate** deliverable from prototype join validation.
+3. **`POSITION_ROLLUP_V1`** formalization; survivability / toxicity / capital-pressure analytics — per **`PHASE_3B_MASTER_DESIGN.md`** / **`PHASE_3B_DATASET_FINALIZATION.md`**.
 
 **Adaptive AI / governance / auto-orchestration:** **NOT started** — remains **out-of-scope** until the **deterministic join + analytics** layer is mature (**no** live feedback into execution; **no** mutation engines).
 

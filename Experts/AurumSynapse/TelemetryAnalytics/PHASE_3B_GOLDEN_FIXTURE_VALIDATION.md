@@ -12,7 +12,8 @@
 
 **Purpose:** Define **golden fixtures**, **validation rules**, **determinism contract**, **harness shape**, and **regression philosophy** so implementation cannot proceed without a failing-fast safety net.
 
-**Status (2026-05-10):** **Validation foundation established** — `Case_001_BasicJoin` and `Case_002_OrphanDeal` **PASS** under strict **byte-identical** line compare; **`PHASE_3B_FIXTURE_DEPLOYMENT_POLICY_V1`** + **`CANONICAL_RUNTIME_SERIALIZATION_POLICY_V1`** frozen. Next planned cases: **`Case_003_DuplicateCandidateJoin`**, **`Case_004_FutureLeakProtection`**, **`Case_005_MissingTelemetryRow`**.
+**Status (2026-05-10):** **Validation foundation established** — `Case_001_BasicJoin` through **`Case_010_TimezoneEdge_StaticOffset`** **PASS** under strict **byte-identical** line compare; **`PHASE_3B_FIXTURE_DEPLOYMENT_POLICY_V1`** + **`CANONICAL_RUNTIME_SERIALIZATION_POLICY_V1`** frozen. Next: roadmap cases as prioritized in §3.  
+**Naming note:** **`Case_003_DuplicateCandidateJoin`** (implemented) refers to **multiple telemetry bars** per deal, not duplicate deals — see §A3. **`Case_006_DuplicateDealTicket`** refers to **duplicate `d_ticket` rows in `deals.csv`** — see §A6. **`Case_007_PartialCloseLifecycle`** is **multiple deal rows** sharing **`d_position_id`** (partial-close identity / partial legs) — see §A7. **`Case_008_PositionRollup`** is the same **deal-grain** join model with **explicit lifecycle rollup annotations** (`x_lifecycle_group_id`, `x_lifecycle_seq`) on every row — see §A8 (not production position analytics). **`Case_009_MultiDealPositionAttribution`** proves **per-deal backward telemetry attribution** across **mixed bar contexts** within one `d_position_id` — see §A9. **`Case_010_TimezoneEdge_StaticOffset`** locks **UTC epoch** join correctness at an **M5 / midnight-adjacent boundary** with **static offset metadata only** — see §A10.
 
 ### CURRENT IMPLEMENTATION POSITION
 
@@ -68,7 +69,7 @@ Analytics layers compound errors: PF-by-regime is meaningless if bar attribution
 | **Runtime read path** | **Only** `FILE_COMMON` — never `TERMINAL_DATA_PATH\MQL5\Experts\...`, never tester-agent sandbox source tree. |
 | **Canonical relative root** | `AurumSynapse\TelemetryFixtures\` (under **Common\Files\**) |
 | **Absolute diagnostics** | `TerminalInfoString(TERMINAL_COMMONDATA_PATH) + "\\Files\\" + <relative root>` |
-| **Harness API** | `JoinValidation_CommonFixtureRoot()`, `JoinValidation_CommonFixtureAbsoluteRoot()`, `JoinValidation_FixtureCase001Root()`, `JoinValidation_FixtureCase002Root()` + `FileOpen(..., FILE_COMMON)` |
+| **Harness API** | `JoinValidation_CommonFixtureRoot()`, `JoinValidation_CommonFixtureAbsoluteRoot()`, `JoinValidation_FixtureCase001Root()` … `JoinValidation_FixtureCase010Root()` + `FileOpen(..., FILE_COMMON)` |
 | **Git / repo role** | `Experts/AurumSynapse/TelemetryFixtures/` remains the **version-controlled source**; operators **copy/sync** into Common\Files before running tests or CI replay. |
 | **Tester agents** | MetaTrader Strategy Tester agents **share** `FILE_COMMON`; fixtures placed once are visible to all agents on that machine. |
 
@@ -125,6 +126,10 @@ Experts/AurumSynapse/TelemetryFixtures/
     README.md                        # intent + pass criteria
   Case_002_OrphanDeal/
     ...                              # negative join: deal before first bar (ORPHAN_DEAL)
+  Case_003_DuplicateCandidateJoin/
+    ...                              # two backward-eligible bars → MAX(bar_utc)
+  Case_004_FutureLeakProtection/
+    ...                              # future bar in file → causal filter before MAX(bar_utc)
   Case_002_MultipleDealsSameBar/     # (roadmap — not implemented yet; numbering TBD vs Case_002_OrphanDeal)
     ...
   Case_003_PartialCloseLifecycle/
@@ -132,16 +137,26 @@ Experts/AurumSynapse/TelemetryFixtures/
   Case_004_ScaleInScaleOut/
     ...
   Case_005_MissingTelemetryRow/
-    ...
+    ...                              # gap: no row for middle bar_utc; OK join to last legal bar; no interpolation
+  Case_006_DuplicateDealTicket/
+    ...                              # duplicate d_ticket in deals.csv → canonical row → single OK join
+  Case_007_PartialCloseLifecycle/
+    ...                              # three partial closes same d_position_id → three OK joins; deterministic sort
+  Case_008_PositionRollup/
+    ...                              # five deals same d_position_id → five OK joins + x_lifecycle_* annotations (deal-grain)
+  Case_009_MultiDealPositionAttribution/
+    ...                              # same d_position_id; each deal maps to its own backward bar; mixed telemetry contexts
+  Case_010_TimezoneEdge_StaticOffset/
+    ...                              # UTC epoch boundary; future bar in file; static offset metadata only (not join input)
   Case_006_OrphanDeal/
     ...
   Case_007_DuplicateDealProtection/
     ...
-  Case_008_TimezoneEdge_StaticOffset/
+  Case_008_TimezoneEdge_StaticOffset/   # (roadmap label — implemented golden uses folder Case_010_TimezoneEdge_StaticOffset; see §A10)
     ...
-  Case_009_CrossSessionBoundary/
+  Case_009_CrossSessionBoundary/     # (roadmap — distinct from implemented Case_009_MultiDealPositionAttribution)
     ...
-  Case_010_StrategyOverlapMask/
+  Case_010_StrategyOverlapMask/      # (roadmap — distinct from implemented Case_010_TimezoneEdge_StaticOffset)
     ...
 ```
 
@@ -202,16 +217,122 @@ Each case lists: **goal**, **expected behavior**, **expected join result**, **fa
 | **Why it matters** | Orphans are **legitimate** in real histories (session start, clock skew recovery, truncated telemetry). If the pipeline hides them or mis-attributes a bar, **all** downstream PF / toxicity / regime stats become silently wrong. Golden `ORPHAN_DEAL` locks the contract before analytics intelligence. |
 | **Failure** | Status not `ORPHAN_DEAL`; `j_bar_utc≠0` with only future bars available; `t_*` populated from telemetry; row missing. |
 
-### B) `Case_002_MultipleDealsSameBar` — multiple deals same bar
+### A3) `Case_003_DuplicateCandidateJoin` — multiple backward-eligible telemetry bars (**not** duplicate deals)
 
 | Item | Specification |
 |------|----------------|
+| **Objective** | Prove **deterministic** resolution when **>1** telemetry row satisfies `bar_utc ≤ d_time_utc` for a **single** deal: **`j_bar_utc = MAX(eligible bar_utc)`** — the **latest** causal bar, **not** “first CSV row”, **not** random, **not** forward-nearest. |
+| **Important** | **“Duplicate candidate”** = **multiple telemetry bars** competing for one deal — **not** duplicate `d_ticket` / duplicate deal rows. |
+| **Expected behavior** | Full-file scan of telemetry data lines; eligible count ≥ **2**; selected row is the one with **`bar_utc = 1735689900`** when bars `1735689600` and `1735689900` exist and `d_time_utc` is after both. **`t_*`** match the **selected** row only. |
+| **Determinism** | Selection depends only on **`bar_utc` values** and `d_time_utc`, **not** on CSV row order (permutation of the two eligible rows yields the same `MAX`). |
+| **Invalid behavior** | Picking **`1735689600`** while **`1735689900`** is eligible; `j_bar_utc > d_time_utc`; blending `t_*` from two bars. |
+| **Failure** | Wrong `j_bar_utc`; `line_mismatch` on `expected_joined.csv`; `eligible` count `< 2` when fixture promises two candidates. |
+
+### A4) `Case_004_FutureLeakProtection` — causal filter before any “nearest” heuristic
+
+| Item | Specification |
+|------|----------------|
+| **Future leak (definition)** | Using any telemetry bar with `bar_utc > d_time_utc` as the attribution source for deal facts — i.e. **non-causal** information enters the joined record. |
+| **Objective** | Prove the scanner **sees** a strictly future telemetry row in the same file, but the join still picks **`j_bar_utc = MAX(bar_utc)` among rows with `bar_utc ≤ d_time_utc`** — never the future row, regardless of row order, spread, or quality. |
+| **Why nearest-neighbor alone is dangerous** | Minimizing `abs(bar_utc - d_time_utc)` without a legality predicate can select a bar **after** the deal whenever the implementation forgets the backward predicate — producing optimistic toxicity, regime labels, and survivorship-biased research artifacts. |
+| **Causal legality rule (frozen)** | **VALID** candidate iff `bar_utc ≤ d_time_utc`. **INVALID** iff `bar_utc > d_time_utc`. Invalid rows are excluded **before** `MAX(bar_utc)` tie-break among valids. |
+| **Important note** | The **closest** timestamp in a file is **not** always a **legal** candidate; legality is defined only by the causal inequality on `bar_utc`. |
+| **Fixture contract** | At least two telemetry data rows; at least one row has `bar_utc > d_time_utc`; exactly one backward-eligible row supplies `t_*` fields in the golden `expected_joined.csv`. |
+| **Failure** | `j_bar_utc > d_time_utc`; `j_bar_utc` equals the future fixture bar; `line_mismatch`; harness cannot observe both “future row exists” and “single eligible backward bar” when the fixture promises that layout. |
+
+### A5) `Case_005_MissingTelemetryRow` — telemetry gap without synthetic fill
+
+| Item | Specification |
+|------|----------------|
+| **Telemetry gap (semantics)** | A **chronological** bar open (`bar_utc`) that *would* be the natural parent is **absent** from `telemetry.csv` (crash, detach, write loss, rotation race). The file is not padded or repaired by the join prototype. |
+| **No-interpolation guarantee** | The engine **never** fabricates CSV rows, does not interpolate metrics for missing `bar_utc`, and does not “peek” at the next bar when it is **causally illegal** (`bar_utc > d_time_utc`). |
+| **Objective** | With rows at `1735689600` and `1735690200`, deal at `1735690000`, and **no** row at `1735689900`, prove **`j_bar_utc = MAX(bar_utc ≤ d_time_utc)` over rows that exist** → `1735689600`, **`OK`**, not `ORPHAN_DEAL`, and not `1735690200`. |
+| **Missing vs orphan** | **Missing telemetry (gap):** at least one legal backward row exists in-file → **`OK`** to the **last observed** legal parent (possibly large `j_bar_latency_sec`). **Orphan (`Case_002`):** **no** row satisfies `bar_utc ≤ d_time_utc` → **`ORPHAN_DEAL`**. |
+| **Why synthetic fill is forbidden** | Invented bars would launder **unknowable** market context into analytics, break reproducibility, and hide data-quality failures — research and governance require explicit gaps, not silent hallucination. |
+| **Determinism** | Full-file scan; outcome depends only on **present** `bar_utc` values and `d_time_utc`, not on row order permutations. |
+| **Failure** | Any synthetic `1735689900` row appears in `telemetry.csv` while the golden still expects absence; `j_bar_utc = 1735690200`; `ORPHAN_DEAL` when a legal parent exists; `line_mismatch`. |
+
+### A6) `Case_006_DuplicateDealTicket` — duplicate `d_ticket` rows in `deals.csv`
+
+| Item | Specification |
+|------|----------------|
+| **Objective** | Prove **deterministic** handling when **`deals.csv` contains ≥2 data rows with the same `d_ticket`** (import/export merge, replay duplication). The harness collapses to **one canonical deal** before telemetry join — **no random survivor**, **no double join**, **no nondeterministic replay**. |
+| **Canonical selection (frozen)** | Among rows sharing that ticket: **(1)** minimum `d_time_utc`; **(2)** if equal, **lexical** `StringCompare` on the **entire** raw CSV data line; **(3)** if still equal, **earlier physical line** (smaller file line index). Implemented in `JoinValidation_ParseDealCsvCanonicalDuplicateTicketPolicy`. |
+| **Join outcome** | Exactly **one** `AS_JOINED_V1` slim row; **`j_join_status=OK`** when a backward bar exists — duplicate resolution is **validator recovery policy**, not a semantic join failure (`ORPHAN_DEAL` / pseudo `DUPLICATE_DEAL` status are **not** emitted here). |
+| **Why the suite PASSes** | The golden freezes **replay-stable canonical pick + single join** so research artifacts and CI remain deterministic; a **stricter** production gate could still **FAIL** batches on duplicate tickets — that is an orthogonal policy choice. |
+| **Non-goals** | No synthetic deal rows, no ML disambiguation, no broker round-trip — only deterministic CSV rules in the validation prototype. |
+| **Failure** | Join uses the later duplicate row; two joined rows; `line_mismatch`; parser accepts mixed tickets for this Case_006 harness path (fixture requires two rows, one ticket). |
+
+### A7) `Case_007_PartialCloseLifecycle` — partial closes, shared `d_position_id`, multi-row golden
+
+| Item | Specification |
+|------|----------------|
+| **Objective** | Prove **deterministic lifecycle grouping at the harness level**: multiple **deal** rows that belong to the **same position** (`d_position_id` equal) each receive their own **backward-only** `OK` join row — **three** slim rows in `expected_joined.csv` — without collapsing into a synthetic **position rollup** row. |
+| **Deal vs lifecycle** | **Deal row** = one `deals.csv` line → one `AS_JOINED_V1` output row. **Lifecycle root (frozen for this case)** = shared **`d_position_id`** carried identically on every joined row (`800007` in the fixture). |
+| **Ordering (frozen)** | Before joining, deal data lines are sorted by **`(d_time_utc` ascending, `d_ticket` ascending)** so file row order does not affect replay; `deals.csv` may be intentionally shuffled. |
+| **Why this is not position rollup** | No net exposure, no staged PnL aggregation, no survivability curve — only **per-deal** attribution with a **consistent** lifecycle key for downstream intelligence **later**. |
+| **Why grouping matters** | Real partial closes generate **many** deal tickets; analytics and governance need a **stable** key (`position_id`) to correlate rows without inventing merged facts in Phase 3B. |
+| **Failure** | Row count ≠ 3; `d_position_id` differs across joined rows; `ORPHAN_DEAL` where bars exist; joined order unstable vs sort policy; `line_mismatch` on any row. |
+
+### A8) `Case_008_PositionRollup` — full lifecycle, shared `d_position_id`, deterministic lifecycle sequence (deal-grain)
+
+| Item | Specification |
+|------|---------------|
+| **Objective** | Prove **one position campaign** expressed as **many** MT5-style deal rows (OPEN → ADD → partial OUT → ADD → final OUT intent in the narrative) still produces **one joined slim row per deal** — **no row collapse** — while every row carries the **same** deterministic **lifecycle group** identity and a **0-based** sequence in canonical order. |
+| **Grouping (frozen)** | All deals in the fixture share **`d_position_id = 800008`**. **`x_lifecycle_group_id`** on each joined row equals that **`d_position_id`** (validator-only annotation; not a production rollup engine). |
+| **Ordering (frozen)** | Same as §A7: sort deal CSV data lines by **`(d_time_utc` ascending, `d_ticket` ascending)** before join; physical file order is intentionally non-canonical to prove replay stability. **`x_lifecycle_seq`** = row index **0 … N−1** after that sort (here **N = 5**). |
+| **Case_007 vs Case_008** | **Case_007** freezes **partial-close identity** consistency (**three** legs, Case_001 slim columns only). **Case_008** freezes **full multi-leg lifecycle** with **extra trailing columns** only on this golden: **`x_lifecycle_group_id`**, **`x_lifecycle_seq`**. |
+| **Deal-grain vs future position-grain** | **Phase 3B output remains deal-grain:** `expected_joined.csv` has **five** data lines for five deals. A future **position-aggregated** export (single row per campaign, exposure, staged PnL) is **out of scope** here — this case only validates **annotations + ordering** that downstream position analytics can rely on later. |
+| **Implementation hook** | After `JoinValidation_BuildJoinedSlimCase001`, the harness calls **`JoinValidation_AppendLifecycleRollupSuffix`** (`JoinValidationPrototype.mqh`). **`JOIN_VALIDATION_JOINER_BUILD_008`** tags rows as **`CASE008-PROTO-1`**. |
+| **Join status** | All rows **`j_join_status=OK`** — not `ORPHAN_DEAL`, not a pseudo `ROLLUP_COMPLETE` / `POSITION_AGGREGATED` status (those would belong to a future production rollup mode). |
+| **Pass journal (frozen)** | `[JOIN_VALIDATION] CASE=Case_008_PositionRollup` then `[JOIN_VALIDATION] STATUS=PASS rows=5 position_rollup_validated=1`. |
+| **Failure** | Row count ≠ 5; `x_lifecycle_group_id` differs across rows; `x_lifecycle_seq` not **0…4** in sort order; unexpected row collapse; `ORPHAN_DEAL` where bars exist; `line_mismatch`. |
+
+> **Roadmap naming:** §H sketch **`Case_008_TimezoneEdge_StaticOffset`** is **not** a repo folder name; the implemented UTC-edge golden is **`Case_010_TimezoneEdge_StaticOffset`** — **§A10** (distinct from **`Case_008_PositionRollup`** §A8).
+
+### A9) `Case_009_MultiDealPositionAttribution` — one `d_position_id`, multiple backward bars, mixed telemetry context per deal
+
+| Item | Specification |
+|------|---------------|
+| **Objective** | Prove **per-deal causal attribution** when several deals share **`d_position_id`** but occur at **different `d_time_utc`**: each deal’s joined row must reflect **`MAX(bar_utc ≤ d_time_utc)`** over the telemetry file — **not** the first bar, **not** the last bar, **not** a position-level summary row, and **not** blending `t_*` across legs. |
+| **Vs Case_007** | Case_007 stresses **identity** of partial-close legs (three rows, **identical** telemetry template in the fixture). Case_009 stresses **attribution**: **different** `j_bar_utc` / `t_*` / `x_regime_proxy` / `x_quality_bin` / leader fields per leg where the clock demands it. |
+| **Vs Case_008** | Case_008 proves **lifecycle sequencing** annotations on top of a single shared telemetry “personality” across bars. Case_009 proves **contextual diversity**: telemetry rows intentionally differ (trending vs high-vol vs ranging vs low-vol, different quality bins, consensus strength, leader slot/sig/str). |
+| **Rollup ≠ attribution** | **`x_lifecycle_group_id` / `x_lifecycle_seq`** (same pattern as §A8) group the **campaign**; they do **not** replace **per-deal** `j_bar_utc` selection. Position identity alone cannot pick the bar — only **`d_time_utc`** does. |
+| **Fixture mechanics** | Five deals, **`d_position_id = 900009`**, shuffled `deals.csv`. Telemetry includes **five** rows: four causal bars with distinct features plus one **strictly future** bar (`bar_utc` after all deals) to reinforce **Case_004-style** rejection before `MAX` among eligibles. Two deals intentionally share the **same** backward bar (same `j_bar_utc`) with **identical** `t_*` in the golden — proving identity of attribution when times fall in the same interval, while other legs differ. |
+| **Implementation hook** | `JoinValidation_BuildJoinedSlimCase001` + **`JoinValidation_AppendLifecycleRollupSuffix`**; **`JOIN_VALIDATION_JOINER_BUILD_009`** → **`CASE009-PROTO-1`**. |
+| **Join status** | All **`OK`**; `ORPHAN_DEAL` forbidden for this fixture. |
+| **Pass journal (frozen)** | `[JOIN_VALIDATION] CASE=Case_009_MultiDealPositionAttribution` then `[JOIN_VALIDATION] STATUS=PASS rows=5 multi_deal_attribution_validated=1`. |
+| **`expected_validation.json` flags** | `multi_deal_attribution_validated=1` (and legacy `attribution_validated=1`), `mixed_contexts=1`, `future_leak_detected=0`, `orphan_count=0` (machine-readable intent; harness asserts bytes + no orphan). |
+| **Failure** | Any deal picks the future bar; all deals show identical `j_bar_utc`/`t_adx`/`t_volatility_ratio` when the golden expects divergence; `line_mismatch`; lifecycle columns inconsistent. |
+
+> **Roadmap naming:** §I **`Case_009_CrossSessionBoundary`** remains a **separate** future scenario (session label drift). The implemented **`Case_009_MultiDealPositionAttribution`** folder occupies the **009** golden slot for **multi-context position attribution**.
+
+### A10) `Case_010_TimezoneEdge_StaticOffset` — UTC epoch boundary, static offset metadata, no forward join
+
+| Item | Specification |
+|------|---------------|
+| **Objective** | Prove **`j_bar_utc = MAX(bar_utc ≤ d_time_utc)`** remains the **only** parent selection rule at a **time boundary** (two consecutive M5 `bar_utc` values; deal `d_time_utc` strictly between them). A **future** bar exists in `telemetry.csv` and must **not** be selected. |
+| **UTC canonical** | All join decisions use **integer UTC epoch seconds** for `d_time_utc` and `bar_utc`. **`bar_time`** strings are human-readable decoration only; they **do not** drive join math. |
+| **Static offset policy** | `expected_validation.json` may declare **`server_utc_offset_sec`** (e.g. **+7200**) as **documentation / consistency metadata** for “broker display skew” narratives — **not** a join input. Phase 3B harness **must not** shift `d_time_utc` or `bar_utc` by this offset. |
+| **DST** | **Explicitly unsupported** in V1 validation fixtures: no DST tables, no automatic local-time conversion framework, no adaptive offset logic. |
+| **Offset metadata ≠ join authority** | If metadata and epoch clocks disagree in a real deployment, **the epoch fields used by the joiner win** for this contract; metadata cannot override `MAX(bar_utc ≤ d_time_utc)`. |
+| **Fixture values** | Bars **`1735775700`**, **`1735776000`**; deal **`1735775850`** → parent **`1735775700`**, latency **`150`**, `j_join_status=OK`. |
+| **Harness** | `JoinVal_RunOneCase(..., passMode=6)` — same causal telemetry scan as Case_004 (`passMode=3`), **different** PASS journal tag. **`JOIN_VALIDATION_JOINER_BUILD_010`** → **`CASE010-PROTO-1`**. |
+| **Pass journal (frozen)** | `[JOIN_VALIDATION] CASE=Case_010_TimezoneEdge_StaticOffset` then `[JOIN_VALIDATION] STATUS=PASS rows=1 timezone_edge_validated=1`. |
+| **Failure** | `j_bar_utc` equals the future bar; `j_bar_utc > d_time_utc`; `line_mismatch`; local PC timezone or metadata incorrectly wired into join selection. |
+
+### B) `Case_002_MultipleDealsSameBar` — multiple deals same bar
+
+| Item | Specification |
+|------|---------------|
 | **Goal** | Two deals same bar, different seconds; both map to **same** `j_bar_utc`. |
 | **Expected behavior** | Stable sort `(d_time_utc, d_ticket)`; optional `j_deals_on_bar=2` after post-pass or computed in validation JSON. |
 | **Expected join** | Two rows; identical `t_bar_utc` / `j_bar_utc`. |
 | **Failure** | Different `j_bar_utc` for same-bar deals; unstable ordering across runs. |
 
 ### C) `Case_003_PartialCloseLifecycle` — partial close lifecycle
+
+> **Implemented golden (Phase 3B harness):** see **§A7** `Case_007_PartialCloseLifecycle` — three `OK` joined rows, shared `d_position_id`, deterministic `(d_time_utc, d_ticket)` ordering. The table below remains a **roadmap** sketch for broader lifecycle features.
 
 | Item | Specification |
 |------|----------------|
@@ -229,7 +350,9 @@ Each case lists: **goal**, **expected behavior**, **expected join result**, **fa
 | **Expected join** | Row count equals deal count; no merged phantom rows. |
 | **Failure** | Collapsed deals into one joined row without documented rollup mode. |
 
-### E) `Case_005_MissingTelemetryRow` — missing telemetry row
+### E) `Case_005_MissingTelemetryRow` — missing telemetry row (roadmap / alternate status policies)
+
+> **Implemented golden harness:** see **§A5** `Case_005_MissingTelemetryRow` — `j_join_status=OK` with **last legal backward bar** and **no interpolation**. The table below describes **optional** broader production policies (e.g. explicit `MISSING_TELEMETRY` status) that are **not** used by the current Phase 3B byte-stable golden for this folder name.
 
 | Item | Specification |
 |------|----------------|
@@ -258,6 +381,8 @@ Each case lists: **goal**, **expected behavior**, **expected join result**, **fa
 
 ### H) `Case_008_TimezoneEdge_StaticOffset` — DST / timezone edge (controlled)
 
+> **Implemented golden:** **`Case_010_TimezoneEdge_StaticOffset`** (**§A10**) — UTC epoch boundary + static offset **metadata** only. The table below is the **original v0 policy sketch** (DST avoidance); **DST remains unsupported** in Phase 3B V1 harness fixtures.
+
 | Item | Specification |
 |------|----------------|
 | **Goal** | Avoid real-world DST tables in v1: use **explicit `server_utc_offset_sec`** in `expected_validation.json` and fixture README; deals/times already in **UTC epoch**. |
@@ -266,6 +391,8 @@ Each case lists: **goal**, **expected behavior**, **expected join result**, **fa
 | **Failure** | Local PC timezone affects results. |
 
 ### I) `Case_009_CrossSessionBoundary` — cross-session boundary
+
+> **Implemented golden (Phase 3B harness):** **`Case_009_MultiDealPositionAttribution`** (§A9) uses the **009** fixture slot for **multi-bar / mixed-context** per-deal attribution within one `d_position_id`. The table below remains the **roadmap** sketch for **cross-session** labeling when `t_session_code` changes across bars.
 
 | Item | Specification |
 |------|----------------|
@@ -283,7 +410,7 @@ Each case lists: **goal**, **expected behavior**, **expected join result**, **fa
 | **Expected join** | `expected_validation.json` asserts mask + leader fields. |
 | **Failure** | Non-deterministic leader when strengths equal and tie-break not lowest slot. |
 
-> **Naming note:** Folder `Case_010_*` keeps ten minimum cases A–J contiguous in repo.
+> **Naming note:** **`Case_010_StrategyOverlapMask`** (§J) is a **future** roadmap folder name — distinct from the implemented **`Case_010_TimezoneEdge_StaticOffset`** golden (**§A10**). Renumber when the overlap-mask harness is added.
 
 ---
 

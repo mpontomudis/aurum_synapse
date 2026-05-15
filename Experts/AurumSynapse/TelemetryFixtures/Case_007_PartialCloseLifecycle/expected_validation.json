@@ -1,0 +1,9 @@
+{
+  "case_id": "Case_007_PartialCloseLifecycle",
+  "expected_rows": 3,
+  "expected_status": "OK",
+  "expected_sha256": "657214bed7261d7a6d65ce55d476b9a10df4c526e593f95173bdd427116ecb3f",
+  "lifecycle_root": "d_position_id",
+  "deal_sort_policy": "d_time_utc_asc_then_d_ticket_asc",
+  "expected_join_behavior": "J1-DEALTIME-BACKWARD-BAR_MULTI_DEAL_SAME_POSITION"
+}

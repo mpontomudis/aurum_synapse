@@ -1,0 +1,10 @@
+{
+  "case_id": "Case_008_PositionRollup",
+  "expected_rows": 5,
+  "expected_status": "OK",
+  "expected_sha256": "efd5010b18dca0881f652491b194dfac4b832f953a7d171ea8f4bffe8ea2515b",
+  "position_rollup_validated": 1,
+  "x_lifecycle_group_id_policy": "equals_d_position_id",
+  "x_lifecycle_seq_policy": "0_based_canonical_sort_d_time_utc_asc_d_ticket_asc",
+  "expected_join_behavior": "J1-DEALTIME-BACKWARD-BAR_DEAL_GRAIN_WITH_LIFECYCLE_ANNOTATIONS"
+}

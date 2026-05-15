@@ -1,0 +1,14 @@
+{
+  "case_id": "Case_009_MultiDealPositionAttribution",
+  "expected_rows": 5,
+  "expected_status": "OK",
+  "expected_sha256": "b5d4a8efe33d62fc42e928364fa71882790ecf81d1e88785cabde04d204f1701",
+  "attribution_validated": 1,
+  "multi_deal_attribution_validated": 1,
+  "mixed_contexts": 1,
+  "future_leak_detected": 0,
+  "orphan_count": 0,
+  "x_lifecycle_group_id_policy": "equals_d_position_id",
+  "x_lifecycle_seq_policy": "0_based_canonical_sort_d_time_utc_asc_d_ticket_asc",
+  "expected_join_behavior": "J1-DEALTIME-BACKWARD-BAR_DEAL_GRAIN_PER_DEAL_BAR_ATTRIBUTION_WITH_LIFECYCLE_ANNOTATIONS"
+}

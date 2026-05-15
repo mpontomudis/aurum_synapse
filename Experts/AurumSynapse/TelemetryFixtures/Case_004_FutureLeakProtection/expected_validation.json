@@ -1,0 +1,9 @@
+{
+  "case_id": "Case_004_FutureLeakProtection",
+  "expected_rows": 1,
+  "expected_status": "OK",
+  "expected_sha256": "f1f4e5c37403cf6c8500b5462af1337b70d7fd88c70fdfbb990341558c2756cd",
+  "expected_join_behavior": "J1-DEALTIME-BACKWARD-BAR_CAUSAL_FILTER_BEFORE_MAX",
+  "future_leak_policy": "bar_utc > d_time_utc is illegal; excluded before MAX(bar_utc) among legals",
+  "deterministic_notes": "Two telemetry rows; nearest clock distance would favor future bar 1735690200 but join must use 1735689600; row order must not change outcome"
+}

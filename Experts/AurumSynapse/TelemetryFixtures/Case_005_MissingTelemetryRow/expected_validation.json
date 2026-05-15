@@ -1,0 +1,9 @@
+{
+  "case_id": "Case_005_MissingTelemetryRow",
+  "expected_rows": 1,
+  "expected_status": "OK",
+  "expected_sha256": "0303cd1a679bbc70115ae8a09b89d9b960da1eb651875716b6047816fbccf88a",
+  "missing_gap_bar_utc": 1735689900,
+  "expected_join_behavior": "J1-DEALTIME-BACKWARD-BAR_GAP_NO_INTERPOLATION",
+  "deterministic_notes": "No synthetic row for missing gap; MAX(bar_utc<=deal) over file rows only; future bar rejected"
+}

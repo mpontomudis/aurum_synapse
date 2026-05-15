@@ -1,0 +1,11 @@
+{
+  "case_id": "Case_003_DuplicateCandidateJoin",
+  "expected_rows": 1,
+  "expected_join_status": "OK",
+  "expected_j_bar_utc": 1735689900,
+  "expected_eligible_telemetry_candidates": 2,
+  "expected_duplicate_candidate_resolution": true,
+  "expected_sha256": "202989184be5f82b55c384506ebd2f76b14c0be37d54406745be1d1812ce7c8b",
+  "notes": "Two telemetry bars <= deal_time; join must pick MAX(bar_utc)=1735689900. Not a duplicate-deal test.",
+  "deterministic_notes": "Full-file scan; order-independent for distinct bar_utc; joiner_build CASE003-PROTO-1"
+}

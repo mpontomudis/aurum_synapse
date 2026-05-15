@@ -4,7 +4,7 @@
 **Status:** **FINAL ARCHITECTURE DECISION** — dataset engineering only (no EA execution changes, no `AS_TELEMETRY_V1` mutation)  
 **Prerequisites:** `PHASE_3B_MASTER_DESIGN.md`, `PHASE_3B_PRE_IMPLEMENTATION_CHECKLIST.md`, `Telemetry/TELEMETRY_CONTRACT.md`, tag **`telemetry-v1-stable`**
 
-**Regression anchor (2026-05-10):** **`JOINED_SLIM`** column order and null/`ORPHAN_DEAL` semantics are **byte-tested** via `TelemetryFixtures/Case_001_BasicJoin` and `Case_002_OrphanDeal` + `Tests/TestTelemetryJoinValidation.mq5` (see `PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`). Future column adds remain **additive minor** per frozen versioning rules.
+**Regression anchor (2026-05-10):** **`JOINED_SLIM`** column order and null/`ORPHAN_DEAL` semantics are **byte-tested** via `TelemetryFixtures/Case_001_BasicJoin`, `Case_002_OrphanDeal`, and **`Case_003_DuplicateCandidateJoin`** + `Tests/TestTelemetryJoinValidation.mq5` (see `PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`). Future column adds remain **additive minor** per frozen versioning rules.
 
 **Scope of this document:** Resolve **`JOINED_SLIM` vs FULL 8-slot signal matrix** for the **canonical** joined export; define **optional research** exports; freeze naming, null, and versioning policy sufficient to start implementation.
 

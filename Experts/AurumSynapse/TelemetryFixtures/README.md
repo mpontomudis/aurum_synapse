@@ -1,5 +1,7 @@
 # TelemetryFixtures — Phase 3B golden join validation
 
+**Freeze (Suite V1):** **`TelemetryAnalytics/PHASE_3B_GOLDEN_SUITE_FREEZE_V1.md`** — canonical **regression law** for Cases **001–010**. **Suite marker:** `VERSION.txt`.
+
 **Policy:** `GOLDEN_CSV_NORMALIZATION_V1` (see `TelemetryAnalytics/PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`)
 
 - UTF-8 **without BOM**

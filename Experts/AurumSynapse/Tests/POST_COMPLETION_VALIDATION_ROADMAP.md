@@ -9,7 +9,52 @@
 
 **PHASE STATUS (Suite V1):** **Golden Fixture Suite V1 — FROZEN** (canonical regression baseline / **regression law**). **Freeze charter:** **`TelemetryAnalytics/PHASE_3B_GOLDEN_SUITE_FREEZE_V1.md`**. **Suite marker:** `TelemetryFixtures/VERSION.txt` → `GOLDEN_FIXTURE_SUITE_V1_FROZEN` (freeze date **2026-05-11**). **Optional freeze tag:** `PHASE_3B_GOLDEN_SUITE_V1_FROZEN`.
 
-**Next (planned):** production **`JoinedTradeRecord`** join exporter + **`POSITION_ROLLUP_V1`** + survivability / toxicity analytics **after** explicit spec; **Adaptive AI / governance** — **not started**; **out-of-scope** until deterministic join + analytics layer matures.
+**Telemetry intelligence (rollup + analytics + causal):** **`POSITION_ROLLUP_V1`**, **`SURVIVABILITY_ANALYTICS_V1`**, **`TOXICITY_ANALYTICS_V1`**, **`CAUSAL_VALIDATION_LAYER_V1`** — **COMPLETE** (deterministic harnesses; see **TELEMETRY INTELLIGENCE MILESTONES** below). **Tag:** `PHASE_7_CAUSAL_VALIDATION_LAYER_COMPLETE`.
+
+**Next (planned):** **`GOVERNANCE & ADAPTIVE INTELLIGENCE`** — adaptive risk governor, strategy degradation memory, toxic regime quarantine, execution survivability governor, confidence throttling, adaptive lifecycle governance, **`AS_JOINED_V2`** architecture, regime intelligence layer (**explicit spec** before implementation; **no** change to Golden Suite V1 regression law, **`expected_joined.csv`**, or **`AS_JOINED_V1`** unless separately chartered).
+
+### TELEMETRY INTELLIGENCE MILESTONES (PHASES 4–7) — **COMPLETE**
+
+#### PHASE 4 — POSITION MEMORY & LIFECYCLE INTELLIGENCE — **COMPLETE**
+- **POSITION_ROLLUP_V1** complete (`PositionRollupV1.mqh`, `PHASE_4_POSITION_ROLLUP_V1_FORMALIZATION.md`)
+- Lifecycle entity formalized
+- Exposure continuity established
+- Partial-close graph normalization complete (linear chain)
+- Deterministic replay invariants established — harness **`Tests/TestPositionRollupV1.mq5`**
+
+#### PHASE 5 — SURVIVABILITY ANALYTICS — **COMPLETE**
+- Survivability scoring engine complete (`SurvivabilityAnalyticsV1.mqh`, `PHASE_5_SURVIVABILITY_ANALYTICS_V1.md`)
+- Deterministic state machine complete
+- Exposure decay analytics complete
+- Staged liquidation analytics complete — harness **`Tests/TestSurvivabilityAnalyticsV1.mq5`**
+
+#### PHASE 6 — TOXICITY ANALYTICS — **COMPLETE**
+- Toxicity state machine complete (`ToxicityAnalyticsV1.mqh`, `PHASE_6_TOXICITY_ANALYTICS_V1.md`)
+- Fake recovery detection complete
+- Spiral deterioration heuristics complete
+- Panic unwind analytics complete
+- Deterministic toxicity scoring complete — harness **`Tests/TestToxicityAnalyticsV1.mq5`**
+
+#### PHASE 7 — CAUSAL VALIDATION LAYER — **COMPLETE**
+- Causal chain formalization complete (`CausalValidationLayerV1.mqh`, `PHASE_7_CAUSAL_VALIDATION_LAYER_V1.md`)
+- Deterioration attribution complete
+- Recovery failure attribution complete
+- Collapse classification complete
+- Terminal exhaustion semantics stabilized (orderly one-shot full-close gate)
+- Classifier precedence conflicts resolved (structural vs fake-recovery vs terminal vs panic)
+- Synthetic spiral heuristics stabilized (`IsSyntheticSpiral` / `DET_MODE_V1_SPIRAL` without literal toxicity spiral flag)
+- Deterministic diagnostic fingerprint complete — harness **`Tests/TestCausalValidationLayerV1.mq5`**
+- **Annotated tag:** `PHASE_7_CAUSAL_VALIDATION_LAYER_COMPLETE`
+
+#### NEXT — GOVERNANCE & ADAPTIVE INTELLIGENCE — **NOT STARTED**
+- Adaptive risk governor
+- Strategy degradation memory
+- Toxic regime quarantine
+- Execution survivability governor
+- Confidence throttling
+- Adaptive lifecycle governance
+- **AS_JOINED_V2** architecture
+- Regime intelligence layer
 
 ---
 

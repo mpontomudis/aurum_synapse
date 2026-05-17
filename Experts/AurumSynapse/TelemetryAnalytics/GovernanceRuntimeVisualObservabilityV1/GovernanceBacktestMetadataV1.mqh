@@ -113,12 +113,12 @@ inline void GovBacktestMetaV1_AppendSection(const string report_id,
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>bars_series</td><td>" + IntegerToString(bars) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>bars_processed</td><td>" + IntegerToString(bars) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>dataset_coverage_seconds_est</td><td>" + IntegerToString((int)span_est) + "</td></tr>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>backtest_started_utc</td><td class=\"mono\">" +
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Backtest started</td><td class=\"mono\">" +
                                          ((g_gov_visual_runtime_v1.started_at > 0) ? GovRuntimeVisualHtmlW1_Escape(TimeToString(g_gov_visual_runtime_v1.started_at, TIME_DATE | TIME_SECONDS)) : "N_A") + "</td></tr>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>backtest_finished_utc</td><td class=\"mono\">" +
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Backtest finished</td><td class=\"mono\">" +
                                          ((g_gov_visual_runtime_v1.finished_at > 0) ? GovRuntimeVisualHtmlW1_Escape(TimeToString(g_gov_visual_runtime_v1.finished_at, TIME_DATE | TIME_SECONDS)) : "N_A") + "</td></tr>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>runtime_duration_seconds</td><td>" + IntegerToString((int)g_gov_visual_runtime_v1.runtime_seconds) + "</td></tr>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>runtime_duration_hms</td><td class=\"mono\">" + GovRuntimeVisualHtmlW1_Escape(GovFmtV1_Duration(g_gov_visual_runtime_v1.runtime_seconds)) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Runtime duration (seconds)</td><td>" + IntegerToString((int)g_gov_visual_runtime_v1.runtime_seconds) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Runtime duration</td><td class=\"mono\">" + GovRuntimeVisualHtmlW1_Escape(GovFmtV1_Duration(g_gov_visual_runtime_v1.runtime_seconds)) + "</td></tr>\n");
    if(ts.valid != 0) {
       const double ini_dep = TesterStatistics(STAT_INITIAL_DEPOSIT);
       const double fin_bal = AccountInfoDouble(ACCOUNT_BALANCE);

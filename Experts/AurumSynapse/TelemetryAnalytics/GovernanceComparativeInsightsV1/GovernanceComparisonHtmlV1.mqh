@@ -11,6 +11,7 @@
 #include "../GovernanceRuntimeVisualObservabilityV1/GovernanceRuntimeVisualHtmlWriterV1.mqh"
 #include "../GovernanceRuntimeObservabilityExportV1/GovernanceRuntimeObservabilityReplayV1.mqh"
 #include "../GovernanceRuntimeVisualObservabilityV1/GovernanceRuntimeVisualContractsV1.mqh"
+#include "../GovernanceRuntimeVisualObservabilityV1/GovernanceRuntimeReportRegistryV1.mqh"
 #include "../GovernanceRuntimeVisualObservabilityV1/GovernanceBacktestInputSnapshotV1.mqh"
 
 inline void GovCmpHtmlV1_AppendSection(const string current_kv,
@@ -18,7 +19,7 @@ inline void GovCmpHtmlV1_AppendSection(const string current_kv,
                                       const SGovCmpRunRecordV1 &current,
                                       string &html)
 {
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-cmp\"><h2>17. Comparative insights</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<article id=\"intel-cmp\" class=\"gov-subarticle\"><h3 class=\"gov-h3\">Cross-run comparative telemetry</h3>\n");
 
    const ulong h0 = GovRuntimeObsReplayV1_Hash64(g_gov_dossier_compare_baseline_kv_v1);
    const ulong h1 = GovRuntimeObsReplayV1_Hash64(current_kv);
@@ -30,6 +31,7 @@ inline void GovCmpHtmlV1_AppendSection(const string current_kv,
 
    if(baseline.valid == 0) {
       GovRuntimeVisualHtmlW1_AppendLf(html, "<p><i>No prior governance baseline row found under <code>" + GovRuntimeVisualHtmlW1_Escape(GOV_VISUAL_BASELINE_CSV_V1) +
+                                        "</code> or <code>" + GovRuntimeVisualHtmlW1_Escape(GOV_REPORT_REGISTRY_CSV_V1) +
                                         "</code>. Next export will establish RUN-vs-RUN history.</i></p>\n");
    } else {
       SGovCmpDiffLinesV1 d;
@@ -64,9 +66,31 @@ inline void GovCmpHtmlV1_AppendSection(const string current_kv,
       GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></details>\n");
    }
 
+   if(g_gov_report_export_ctx_v1.valid != 0) {
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<h4>Historical library anchors</h4>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-note\">Derived from <code>" + GovRuntimeVisualHtmlW1_Escape(GOV_REPORT_REGISTRY_CSV_V1) + "</code> (same symbol and timeframe). Use with baseline deltas above.</p>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<table class=\"doss-meta\"><thead><tr><th>Anchor</th><th>Run ID</th><th>PF</th><th>DD bal %</th><th>Max tox (est.)</th></tr></thead><tbody>\n");
+      if(g_gov_report_export_ctx_v1.cmp_best_pf.valid != 0)
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Best PF</td><td class=\"mono\">" + GovRuntimeVisualHtmlW1_Escape(g_gov_report_export_ctx_v1.cmp_best_pf.run_ts) + "</td><td>" + DoubleToString(g_gov_report_export_ctx_v1.cmp_best_pf.pf, 3) + "</td><td>" +
+                                               DoubleToString(g_gov_report_export_ctx_v1.cmp_best_pf.dd_bal_pct, 2) + "</td><td>" + IntegerToString(g_gov_report_export_ctx_v1.cmp_best_pf.max_tox) + "</td></tr>\n");
+      else
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Best PF</td><td colspan=\"4\"><i>No prior rows for this symbol/TF.</i></td></tr>\n");
+      if(g_gov_report_export_ctx_v1.cmp_safest_dd.valid != 0)
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Lowest DD</td><td class=\"mono\">" + GovRuntimeVisualHtmlW1_Escape(g_gov_report_export_ctx_v1.cmp_safest_dd.run_ts) + "</td><td>" + DoubleToString(g_gov_report_export_ctx_v1.cmp_safest_dd.pf, 3) + "</td><td>" +
+                                               DoubleToString(g_gov_report_export_ctx_v1.cmp_safest_dd.dd_bal_pct, 2) + "</td><td>" + IntegerToString(g_gov_report_export_ctx_v1.cmp_safest_dd.max_tox) + "</td></tr>\n");
+      else
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Lowest DD</td><td colspan=\"4\"><i>No prior rows for this symbol/TF.</i></td></tr>\n");
+      if(g_gov_report_export_ctx_v1.cmp_richest.valid != 0)
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Most profitable</td><td class=\"mono\">" + GovRuntimeVisualHtmlW1_Escape(g_gov_report_export_ctx_v1.cmp_richest.run_ts) + "</td><td>" + DoubleToString(g_gov_report_export_ctx_v1.cmp_richest.pf, 3) + "</td><td>" +
+                                               DoubleToString(g_gov_report_export_ctx_v1.cmp_richest.dd_bal_pct, 2) + "</td><td>" + IntegerToString(g_gov_report_export_ctx_v1.cmp_richest.max_tox) + "</td></tr>\n");
+      else
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Most profitable</td><td colspan=\"4\"><i>No prior rows for this symbol/TF.</i></td></tr>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
+   }
+
    GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"mono\" style=\"color:#8b949e;font-size:0.85rem;\">Baseline store: append-only CSV+JSONL under MQL5 Files. Schema dossier=" +
                                          IntegerToString((int)GOV_DOSSIER_SCHEMA_VER_V1) + "</p>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</article>\n");
 }
 
 #endif // __AURUM_GOV_CMP_HTML_V1_MQH__

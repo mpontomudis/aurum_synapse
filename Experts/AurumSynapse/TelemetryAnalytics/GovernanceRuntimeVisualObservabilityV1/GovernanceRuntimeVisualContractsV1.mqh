@@ -15,10 +15,15 @@
 #define GOV_VISUAL_JSON_EXT_V1         "_governance_report.json"
 #define GOV_DOSSIER_COMPARE_EXT_V1     "_governance_report_compare.html"
 
-#define GOV_DOSSIER_SCHEMA_VER_V1      ((uint)2)
+#define GOV_DOSSIER_SCHEMA_VER_V1      ((uint)3)
 
 #define GOV_VISUAL_BASELINE_DIR_V1     "AurumSynapse\\TelemetryAnalytics\\Baselines\\"
 #define GOV_VISUAL_BASELINE_CSV_V1    "AurumSynapse\\TelemetryAnalytics\\Baselines\\governance_run_index_v1.csv"
 #define GOV_VISUAL_BASELINE_JSONL_V1  "AurumSynapse\\TelemetryAnalytics\\Baselines\\governance_run_index_v1.jsonl"
+
+// PHASE 20E — dossier library (append-only HTML + registry + index)
+#define GOV_REPORT_REGISTRY_CSV_V1     "AurumSynapse\\TelemetryAnalytics\\Reports\\report_registry.csv"
+#define GOV_REPORT_INDEX_HTML_V1       "AurumSynapse\\TelemetryAnalytics\\Reports\\index.html"
+#define GOV_REPORT_HISTORY_CAP_V1      ((uint)500)
 
 #endif // __AURUM_GOV_RUNTIME_VISUAL_CONTRACTS_V1_MQH__

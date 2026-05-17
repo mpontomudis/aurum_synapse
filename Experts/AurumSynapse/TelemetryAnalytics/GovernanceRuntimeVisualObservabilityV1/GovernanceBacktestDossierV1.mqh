@@ -12,6 +12,7 @@
 #include "../GovernanceStrategyAttributionIntelligenceV1/GovernanceStrategyAttributionExportV1.mqh"
 #include "../GovernanceStrategyAttributionIntelligenceV1/GovernanceStrategyToxicityAnalyticsV1.mqh"
 #include "GovernanceRuntimeVisualContractsV1.mqh"
+#include "GovernanceRuntimeReportRegistryV1.mqh"
 #include "GovernanceRuntimeVisualDatasetV1.mqh"
 #include "GovernanceRuntimeVisualHtmlWriterV1.mqh"
 #include "GovernanceRuntimeVisualCssV1.mqh"
@@ -219,7 +220,9 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    SGovBacktestTradeStatsV1 tsx;
    GovBacktestTradeStatsV1_FromExecAndTester(ex, tsx);
 
-   const string report_id = GOV_VISUAL_REPORT_PREFIX_V1 + report_ts;
+   const string cmp_run_key = (g_gov_report_export_ctx_v1.valid != 0) ? g_gov_report_export_ctx_v1.report_core_id : report_ts;
+   const string report_id = (g_gov_report_export_ctx_v1.valid != 0) ? (GOV_VISUAL_REPORT_PREFIX_V1 + g_gov_report_export_ctx_v1.report_core_id) : (GOV_VISUAL_REPORT_PREFIX_V1 + report_ts);
+   const string meta_ts = (g_gov_report_export_ctx_v1.valid != 0) ? g_gov_report_export_ctx_v1.report_ts_display : report_ts;
 
    GovRuntimeVisualHtmlW1_AppendLf(html, "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"/>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n");
@@ -231,15 +234,30 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-header-sub\">" + GovRuntimeVisualHtmlW1_Escape(sym) + " · " + GovRuntimeVisualHtmlW1_Escape(GovBacktestMetaV1_PeriodStr(tf)) + " · schema " +
                                          IntegerToString((int)GOV_DOSSIER_SCHEMA_VER_V1) + " · ABI " + IntegerToString((int)GOV_VISUAL_ABI_VER_V1) + "</p></div></header>\n");
 
+   if(g_gov_report_export_ctx_v1.valid != 0) {
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-libnav\"><nav class=\"gov-libbar\" aria-label=\"Report library\">\n");
+      if(StringLen(g_gov_report_export_ctx_v1.prev_filename) > 0)
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<a class=\"gov-btn\" href=\"./" + GovRuntimeVisualHtmlW1_Escape(g_gov_report_export_ctx_v1.prev_filename) + "\">Previous report</a>\n");
+      else
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<span class=\"gov-btn gov-btn-dis\">Previous report</span>\n");
+      if(StringLen(g_gov_report_export_ctx_v1.next_filename) > 0)
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<a class=\"gov-btn\" href=\"./" + GovRuntimeVisualHtmlW1_Escape(g_gov_report_export_ctx_v1.next_filename) + "\">Next report</a>\n");
+      else
+         GovRuntimeVisualHtmlW1_AppendLf(html, "<span class=\"gov-btn gov-btn-dis\">Next report</span>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<a class=\"gov-btn\" href=\"./index.html\">Open index</a>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<a class=\"gov-btn\" href=\"#intel-cmp\">Compare with baseline</a>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "</nav></div>\n");
+   }
+
    GovRuntimeVisualHtmlW1_AppendLf(html, "<nav id=\"toc\" class=\"gov-toc\"><a href=\"#intel-s1\">01 Exec</a><a href=\"#intel-s2\">02 Meta</a><a href=\"#intel-s3\">03 Config</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s4\">04 Perf</a><a href=\"#intel-s5\">05 Ecology</a><a href=\"#intel-s6\">06 Consensus</a><a href=\"#intel-s7\">07 Signal</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s8\">08 Regime</a><a href=\"#intel-s9\">09 Session</a><a href=\"#intel-s10\">10 Lineage</a><a href=\"#intel-s11\">11 Breach</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s12\">12 Toxicity</a><a href=\"#intel-s13\">13 Forensics</a><a href=\"#intel-s14\">14 Reco</a><a href=\"#intel-s15\">15 Verdict</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-attest\">Attest</a></nav>\n<main class=\"gov-main\">\n");
 
-   GovIntelDossierV1_AppendExecutive(sym, tf, report_ts, mod, lin, sum, ex, tsx, html);
+   GovIntelDossierV1_AppendExecutive(sym, tf, meta_ts, mod, lin, sum, ex, tsx, html);
 
-   GovBacktestMetaV1_AppendSection(report_id, report_ts, sym, tf, g_gov_dossier_git_commit_v1, g_gov_dossier_build_number_v1, tsx, html);
+   GovBacktestMetaV1_AppendSection(report_id, meta_ts, sym, tf, g_gov_dossier_git_commit_v1, g_gov_dossier_build_number_v1, tsx, html);
 
    GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s3\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">03</span> Governance configuration</h2>\n");
    GovIntelDossierV1_AppendGovernanceConfigIntro(html);
@@ -288,7 +306,7 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    GovBacktestRecoveryV1_AppendSection(lin, html);
    GovBacktestReplayTlV1_AppendSection(mod, html, 96);
    SGovCmpRunRecordV1 cmp_cur;
-   GovCmpStoreV1_FillCurrent(report_ts, sym, tf, sum, ex, lin, rec, cmp_cur);
+   GovCmpStoreV1_FillCurrent(cmp_run_key, sym, tf, sum, ex, lin, rec, cmp_cur);
    GovBacktestCmpV1_AppendSection(g_gov_backtest_input_kv_v1, cmp_baseline, cmp_cur, html);
    GovIntelDossierV1_AppendForensicsShellClose(html);
 

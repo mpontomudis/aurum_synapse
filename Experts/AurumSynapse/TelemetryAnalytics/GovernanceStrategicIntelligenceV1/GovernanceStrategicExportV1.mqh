@@ -2,14 +2,14 @@
 //| GovernanceStrategicExportV1.mqh                              |
 //| UTF-8/LF deterministic strategic bundles.                        |
 //+------------------------------------------------------------------+
-#ifndef __AURUM_GOV_STRAT_EXP_V1_MQH__
-#define __AURUM_GOV_STRAT_EXP_V1_MQH__
+#ifndef __AURUM_GOV_STRATEGIC_EXPORT_V1_MQH__
+#define __AURUM_GOV_STRATEGIC_EXPORT_V1_MQH__
 
 #include "GovernanceStrategicDatasetV1.mqh"
 #include "../GovernanceEvolutionIntelligenceV1/GovernanceEvolutionDatasetV1.mqh"
 
-bool GovStratExpV1_Bundle(const SGovStrategicSummaryV1 &sum, const SGovStrategicEnduranceV1 &en, const SGovStrategicBudgetV1 &bud, const SGovStrategicContainmentV1 &ctn, const SGovStrategicTrajectoryV1 &tr,
-                          const SGovCatastrophicResistanceV1 &cat, const SGovEvolutionGenerationV1 &gens[], const int n, int &rank_ord[], string &out, string &out_err) {
+bool GovStrategicExpV1_Bundle(const SGovStrategicSummaryV1 &sum, const SGovStrategicEnduranceV1 &en, const SGovStrategicBudgetV1 &bud, const SGovStrategicContainmentV1 &ctn, const SGovStrategicTrajectoryV1 &tr,
+                              const SGovCatastrophicResistanceV1 &cat, const SGovEvolutionGenerationV1 &gens[], const int n, int &rank_ord[], string &out, string &out_err) {
     out_err = "";
     out = "===GOV_STRATEGIC_V1===\n";
     out += "schema,GOV_STRATEGIC_V1\n";
@@ -60,4 +60,4 @@ bool GovStratExpV1_Bundle(const SGovStrategicSummaryV1 &sum, const SGovStrategic
     return true;
 }
 
-#endif // __AURUM_GOV_STRAT_EXP_V1_MQH__
+#endif // __AURUM_GOV_STRATEGIC_EXPORT_V1_MQH__

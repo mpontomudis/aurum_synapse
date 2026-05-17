@@ -2,8 +2,8 @@
 //| GovernanceStrategicLiveIntegrationV1.mqh                      |
 //| … → evolution → strategic export (observational).               |
 //+------------------------------------------------------------------+
-#ifndef __AURUM_GOV_STRAT_LIVE_V1_MQH__
-#define __AURUM_GOV_STRAT_LIVE_V1_MQH__
+#ifndef __AURUM_GOV_STRATEGIC_LIVEINT_V1_MQH__
+#define __AURUM_GOV_STRATEGIC_LIVEINT_V1_MQH__
 
 #include "../GovernanceEvolutionIntelligenceV1/GovernanceEvolutionLiveIntegrationV1.mqh"
 #include "../GovernanceEvolutionIntelligenceV1/GovernanceDegenerationEngineV1.mqh"
@@ -19,8 +19,8 @@
 #include "GovernanceStrategicResearchV1.mqh"
 #include "GovernanceStrategicExportV1.mqh"
 
-bool GovStratAggV1_BuildSummary(const SGovResilienceProfileV1 &rp, const SGovEvolutionSummaryV1 &evo, const SGovStrategicEnduranceV1 &en, const SGovStrategicBudgetV1 &bud, const SGovStrategicContainmentV1 &ctn,
-                                const SGovStrategicTrajectoryV1 &tr, const SGovCatastrophicResistanceV1 &cat, SGovStrategicSummaryV1 &sum, string &out_err) {
+bool GovStrategicAggV1_BuildSummary(const SGovResilienceProfileV1 &rp, const SGovEvolutionSummaryV1 &evo, const SGovStrategicEnduranceV1 &en, const SGovStrategicBudgetV1 &bud, const SGovStrategicContainmentV1 &ctn,
+                                    const SGovStrategicTrajectoryV1 &tr, const SGovCatastrophicResistanceV1 &cat, SGovStrategicSummaryV1 &sum, string &out_err) {
     out_err = "";
     GovStratDsV1_InitSummary(sum);
     sum.strategic_window_id = 1;
@@ -78,17 +78,17 @@ bool GovStratPipeV1_FromResilienceProfile(const SGovResilienceProfileV1 &rp, SGo
     SGovCatastrophicResistanceV1 cat;
     if(!GovStratCatV1_Score(rp, gens_out, n, dg, cat, out_err))
         return false;
-    if(!GovStratAggV1_BuildSummary(rp, evo_out, en, bud, ctn, traj, cat, strat_out, out_err))
+    if(!GovStrategicAggV1_BuildSummary(rp, evo_out, en, bud, ctn, traj, cat, strat_out, out_err))
         return false;
     int ord[32];
     GovStratResV1_RankEnduranceProxy(gens_out, n, ord);
     strat_blk_out = "";
-    if(!GovStratExpV1_Bundle(strat_out, en, bud, ctn, traj, cat, gens_out, n, ord, strat_blk_out, out_err))
+    if(!GovStrategicExpV1_Bundle(strat_out, en, bud, ctn, traj, cat, gens_out, n, ord, strat_blk_out, out_err))
         return false;
     return true;
 }
 
-bool GovStratLiveV1_Run(const string utf8_lf, SGovStrategicSummaryV1 &out_sum, string &out_bundle, string &out_err) {
+bool GovStrategicLiveV1_Run(const string utf8_lf, SGovStrategicSummaryV1 &out_sum, string &out_bundle, string &out_err) {
     out_err = "";
     out_bundle = "";
     GovStratDsV1_InitSummary(out_sum);
@@ -106,4 +106,4 @@ bool GovStratLiveV1_Run(const string utf8_lf, SGovStrategicSummaryV1 &out_sum, s
     return true;
 }
 
-#endif // __AURUM_GOV_STRAT_LIVE_V1_MQH__
+#endif // __AURUM_GOV_STRATEGIC_LIVEINT_V1_MQH__

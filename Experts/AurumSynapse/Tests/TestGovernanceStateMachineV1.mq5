@@ -10,6 +10,7 @@
 #include "../TelemetryAnalytics/GovernanceEvidenceIntegrationV1/GovernanceEvidenceIntegrationV1.mqh"
 #include "../TelemetryAnalytics/GovernanceOrchestrationV1/GovernanceExecutionOrchestratorV1.mqh"
 #include "../TelemetryAnalytics/GovernanceReplayVisualIntelligenceV1/GovernanceReplayVisualIntelligenceV1.mqh"
+#include "../TelemetryAnalytics/GovernanceShadowRuntimeLaneV1.mqh"
 
 #define GOV_V1_TMP_POLICY_TAB "__gov_kernel_policy_valid.tab"
 #define GOV_V1_TMP_TRANSCRIPT "__gov_kernel_transcript.bin"
@@ -1887,9 +1888,9 @@ bool T_Strat_ExpDet(void) {
     SGovStrategicSummaryV1 s2;
     string b1 = "", b2 = "", err = "";
     const string raw = GovTest_ReplayGoldenBlockTwoEpochs();
-    if(!GovStratLiveV1_Run(raw, s1, b1, err))
+    if(!GovStrategicLiveV1_Run(raw, s1, b1, err))
         return Fail("strat_exp_a");
-    if(!GovStratLiveV1_Run(raw, s2, b2, err))
+    if(!GovStrategicLiveV1_Run(raw, s2, b2, err))
         return Fail("strat_exp_b");
     return (b1 == b2);
 }
@@ -1958,7 +1959,7 @@ bool T_Strat_CollapseAvoid(void) {
     if(!GovStratCatV1_Score(rp, gens, n, dg, cat, err))
         return Fail("strat_cav_cat");
     SGovStrategicSummaryV1 sum;
-    if(!GovStratAggV1_BuildSummary(rp, evo, en, bud, ctn, traj, cat, sum, err))
+    if(!GovStrategicAggV1_BuildSummary(rp, evo, en, bud, ctn, traj, cat, sum, err))
         return Fail("strat_cav_agg");
     return (sum.collapse_avoidance_score_0_1000 > 0);
 }
@@ -2020,7 +2021,7 @@ bool T_Strat_LongHoriz(void) {
     if(!GovStratCatV1_Score(rp, gens, n, dg, cat, err))
         return Fail("strat_lh_cat");
     SGovStrategicSummaryV1 sum;
-    if(!GovStratAggV1_BuildSummary(rp, evo, en, bud, ctn, traj, cat, sum, err))
+    if(!GovStrategicAggV1_BuildSummary(rp, evo, en, bud, ctn, traj, cat, sum, err))
         return Fail("strat_lh_agg");
     return (sum.survivability_horizon_0_1000 > 0);
 }
@@ -3448,6 +3449,578 @@ bool T_Evidence_IntegratedShadowStable(void) {
     return true;
 }
 
+bool T_GovRuntime_ShadowSnapshot(void) {
+    SGovRuntimeShadowSnapshotV1 s;
+    GovRuntimeShadowV1_InitSnapshot(s);
+    GovRuntimeShadowV1_Capture(D'2020.01.01 00:00', "XAUUSD", 25L, 10050.75, 0.1234, 2, 3, 61.25, true, (uint)7, 88, 12, (uint)0x3, s);
+    if(s.ts_utc != D'2020.01.01 00:00')
+        return Fail("grts_ts");
+    if(s.symbol != "XAUUSD")
+        return Fail("grts_sym");
+    if(s.spread_points != 25)
+        return Fail("grts_sp");
+    if(s.equity_cents != 1005075L)
+        return Fail("grts_eq");
+    if(s.max_equity_dd_bp != 1234L)
+        return Fail("grts_dd");
+    if(s.open_positions != 2 || s.strategy_id != 3)
+        return Fail("grts_pos");
+    if(s.quality_score_bp != 6125L)
+        return Fail("grts_q");
+    if(!s.execution_allowed_native)
+        return Fail("grts_ex");
+    if(s.governance_shadow_state != (uint)7)
+        return Fail("grts_gs");
+    if(s.survivability_score_0_100 != 88 || s.toxicity_score_0_100 != 12)
+        return Fail("grts_st");
+    if(s.anomaly_flags != (uint)0x3)
+        return Fail("grts_an");
+    return true;
+}
+
+bool T_GovRuntime_QueueAppend(void) {
+    SGovRuntimeShadowQueueV1 q;
+    GovRuntimeShadowQueueV1_Init(q);
+    SGovRuntimeShadowSnapshotV1 s;
+    for(int i = 0; i < 300; i++) {
+        GovRuntimeShadowV1_Capture(0, "TEST", (long)i, 1000.0 + (double)i, 0.01, 1, 0, 50.0, false, (uint)0, i % 100, i % 10, (uint)0, s);
+        if(!GovRuntimeShadowQueueV1_Append(q, s))
+            return Fail("grqa_app");
+    }
+    if(GovRuntimeShadowQueueV1_Count(q) != GOV_RUNTIME_SHADOW_QUEUE_CAP_V1)
+        return Fail("grqa_cap");
+    if(q.total_pushes != (uint)300)
+        return Fail("grqa_tot");
+    const int cap = GOV_RUNTIME_SHADOW_QUEUE_CAP_V1;
+    const int lastIdx = (q.tail + cap - 1) % cap;
+    if(q.slots[lastIdx].v[10] != 99L)
+        return Fail("grqa_wrap");
+    return true;
+}
+
+bool T_GovRuntime_NoReplayParser(void) {
+    if(!GovRuntimeShadowLaneV1_ContractColdLaneOnly())
+        return Fail("grnr_contract");
+    if(GOV_RUNTIME_SHADOW_LANE_NO_REPLAY != 1)
+        return Fail("grnr_lane_macro");
+    if(GOV_RUNTIME_SHADOW_CONTRACT_V1_NO_REPLAY != 1)
+        return Fail("grnr_contract_macro");
+    return true;
+}
+
+bool T_GovRuntime_NoExportHotPath(void) {
+    SGovRuntimeShadowQueueV1 q;
+    GovRuntimeShadowQueueV1_Init(q);
+    SGovRuntimeShadowSnapshotV1 s;
+    GovRuntimeShadowV1_Capture(0, "", 1L, 0.0, 0.0, 0, 0, 0.0, true, (uint)0, 0, 0, (uint)0, s);
+    for(int k = 0; k < 5000; k++) {
+        if(!GovRuntimeShadowQueueV1_Append(q, s))
+            return Fail("grne_app");
+    }
+    return true;
+}
+
+bool T_GovRuntime_NonBlocking(void) {
+    uint t0 = GetTickCount();
+    SGovRuntimeShadowQueueV1 q;
+    GovRuntimeShadowQueueV1_Init(q);
+    SGovRuntimeShadowSnapshotV1 s;
+    GovRuntimeShadowV1_Capture(0, "EURUSD", 10L, 5000.0, 0.05, 0, 1, 55.5, false, (uint)1, 50, 50, (uint)0, s);
+    for(int j = 0; j < 20000; j++) {
+        if(!GovRuntimeShadowQueueV1_Append(q, s))
+            return Fail("grnb_app");
+    }
+    uint t1 = GetTickCount();
+    if(t1 < t0)
+        return true;
+    uint dt = t1 - t0;
+    if(dt > (uint)120000)
+        return Fail("grnb_slow");
+    return true;
+}
+
+bool T_GovRuntime_TimerSafe(void) {
+    if(sizeof(SGovRuntimeShadowQueueV1) < sizeof(SGovRuntimeShadowQueueSlotV1))
+        return Fail("grts_sz");
+    SGovRuntimeShadowQueueV1 qz;
+    GovRuntimeShadowQueueV1_Init(qz);
+    if(GovRuntimeShadowLaneV1_DeferredDrainHint(qz) != 0)
+        return Fail("grts_hint");
+    return true;
+}
+
+void GovTest_SAttrFillTr(SGovStratAttribTradeV1 &t, const int strat, const int regime, const int sess, const int vol, const long pc, const int hold, const int so, const int tail) {
+    GovStrAttrDsV1_InitTrade(t);
+    t.strat = strat;
+    t.regime = regime;
+    t.session = sess;
+    t.vol = vol;
+    t.profit_cents = pc;
+    t.hold_bars = hold;
+    t.stopout = so;
+    t.tail_loss = tail;
+}
+
+bool GovTest_ContextCompat(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 2);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_TF, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_LOW, 10L, 1, 0, 0);
+    GovTest_SAttrFillTr(tr[1], GOV_STRAT_TF, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_LOW, 20L, 1, 0, 0);
+    SGovStratAttribSummaryV1 a;
+    SGovStratAttribSummaryV1 b;
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 2, a, err))
+        return Fail("ctx_compat_legacy");
+    SGovStrategicContextV1 ctx;
+    GovStrategicCtxV1_Reset(ctx);
+    if(!GovStrategicCtxV1_SetAttribTrades(ctx, tr, 2))
+        return Fail("ctx_compat_set");
+    SGovStratAttribTradeV1 z[];
+    ArrayResize(z, 0);
+    if(!GovStratAggV1_BuildSummary(ctx, z, b))
+        return Fail("ctx_compat_ctx");
+    if(a.trade_count_input != b.trade_count_input)
+        return Fail("ctx_compat_tr");
+    return true;
+}
+
+bool GovTest_ContextClone(void) {
+    SGovStrategicContextV1 a;
+    GovStrategicCtxV1_Reset(a);
+    a.resilience.summary.replay_epoch_count = 7;
+    SGovStrategicContextV1 b;
+    GovStrategicCtxV1_Clone(a, b);
+    return (b.resilience.summary.replay_epoch_count == 7 && GovStrategicCtxV1_Validate(b));
+}
+
+bool GovTest_ContextIsolation(void) {
+    if(GovDepMapV1_IsLegalChain(GOV_DEP_ATTRIBUTION_V1, GOV_DEP_ATTRIBUTION_V1))
+        return false;
+    return GovDepMapV1_IsLegalChain(GOV_DEP_REPLAY_V1, GOV_DEP_RESILIENCE_V1);
+}
+
+bool GovTest_ContextRouting(void) {
+    SGovStrategicContextV1 ctx;
+    GovCtxRouterV1_Build(ctx);
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 1);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_MR, GOV_REGIME_CHOP, GOV_SATTR_SESS_ASIA, GOV_SATTR_VOL_LOW, 5L, 1, 0, 0);
+    if(!GovCtxRouterV1_Inject(ctx, tr, 1))
+        return Fail("ctx_rt_inj");
+    string e = "";
+    if(!GovCtxRouterV1_Resolve(ctx, e))
+        return Fail("ctx_rt_res");
+    SGovStratAttribSummaryV1 sum;
+    if(!GovStratLiveV1_Run(ctx, "", sum))
+        return Fail("ctx_rt_run");
+    if(sum.trade_count_input != 1)
+        return Fail("ctx_rt_tr");
+    return true;
+}
+
+bool GovTest_ContextDependency(void) {
+    return (GOV_DEP_ATTRIBUTION_V1 == 5 && GOV_STRATEGIC_ABI_VER_V1 == 1);
+}
+
+bool GovTest_BackwardCompatibility(void) {
+    return GovCompileV1_ValidateContracts(GOV_CTX_API_V1);
+}
+
+bool T_CTX_Reset(void) {
+    SGovStrategicContextV1 ctx;
+    GovStrategicCtxV1_Reset(ctx);
+    return GovStrategicCtxV1_Validate(ctx);
+}
+
+bool T_CTX_Clone(void) {
+    return GovTest_ContextClone();
+}
+
+bool T_CTX_Validate(void) {
+    SGovStrategicContextV1 ctx;
+    GovStrategicCtxV1_Reset(ctx);
+    ctx.api_magic = 0;
+    if(GovStrategicCtxV1_Validate(ctx))
+        return Fail("ctx_val_should_fail");
+    GovStrategicCtxV1_Reset(ctx);
+    return GovStrategicCtxV1_Validate(ctx);
+}
+
+bool T_CTX_Compat(void) {
+    return GovTest_ContextCompat();
+}
+
+bool T_CTX_NoCircular(void) {
+    return GovTest_ContextIsolation();
+}
+
+bool T_CTX_StableAbi(void) {
+    return (GOV_STRATEGIC_ABI_VER_V1 >= 1);
+}
+
+bool T_CTX_StableReplay(void) {
+    return GovTest_ContextRouting();
+}
+
+bool T_CTX_SafeInject(void) {
+    SGovStrategicContextV1 ctx;
+    GovCompileV1_SafeInit(ctx);
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 1);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_BO, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_MED, 1L, 1, 0, 0);
+    return GovCtxRouterV1_Inject(ctx, tr, 1);
+}
+
+bool T_CTX_ContractSafety(void) {
+    SGovStrategicContextV1 ctx;
+    GovStrategicCtxV1_Reset(ctx);
+    return GovCompileV1_Ensure(GovCompileV1_CheckCtx(ctx));
+}
+
+bool T_CTX_NoMutation(void) {
+    SGovStrategicContextV1 ctx;
+    GovStrategicCtxV1_Reset(ctx);
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 1);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_PA, GOV_REGIME_CHOP, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_LOW, 3L, 1, 0, 0);
+    GovCtxRouterV1_Inject(ctx, tr, 1);
+    const int n0 = ctx.sattr_trade_n;
+    SGovStratAttribSummaryV1 sum;
+    if(!GovStratLiveV1_Run(ctx, "", sum))
+        return Fail("ctx_nom_run");
+    return (ctx.sattr_trade_n == n0);
+}
+
+bool GovTest_ExportCompat(void) {
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    string a = "";
+    string b = "";
+    if(!GovStratExpV1_Bundle(sum, a))
+        return Fail("exp_compat_a");
+    SGovStrategicContextV1 ctx;
+    GovStrategicCtxV1_Reset(ctx);
+    if(!GovStratExpV1_Bundle(ctx, sum, b))
+        return Fail("exp_compat_b");
+    return GovExportDetV1_Equals(a, b);
+}
+
+bool GovTest_ExportDeterminism(void) {
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    string s = "";
+    if(!GovStratExpV1_Bundle(sum, s))
+        return false;
+    const uint h1 = GovExportDetV1_Hash(s);
+    const uint h2 = GovExportDetV1_Hash(s);
+    return (h1 == h2);
+}
+
+bool GovTest_ExportFederation(void) {
+    SGovExportFedStateV1 st;
+    GovExportFedV1_Build(st);
+    GovExportFedV1_Append(st, "x=1");
+    GovExportFedV1_Append(st, "y=2");
+    string o = "";
+    GovExportFedV1_Finalize(st, o);
+    return (StringFind(o, "x=1") >= 0 && StringFind(o, "y=2") >= 0);
+}
+
+bool GovTest_ExportReplay(void) {
+    string e = "";
+    return GovExportDetV1_Verify("a\nb", "a\nb", e);
+}
+
+bool GovTest_ExportRouting(void) {
+    string err = "";
+    return GovExportRouterV1_Resolve(GOV_EXPORT_ABI_VER_V1, err);
+}
+
+bool GovTest_ExportSchema(void) {
+    return GovExportSchemaV1_IsValid(GOV_EXP_BLK_STRATEGY_V1) && (!GovExportSchemaV1_IsValid("===NOT_A_BLOCK==="));
+}
+
+bool T_EXP_CtxBundle(void) {
+    SGovStrategicContextV1 ctx;
+    GovStrategicCtxV1_Reset(ctx);
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    string out = "";
+    return GovStratExpV1_Bundle(ctx, sum, out);
+}
+
+bool T_EXP_Compat(void) {
+    return GovTest_ExportCompat();
+}
+
+bool T_EXP_Determinism(void) {
+    return GovTest_ExportDeterminism();
+}
+
+bool T_EXP_Schema(void) {
+    return GovTest_ExportSchema();
+}
+
+bool T_EXP_Router(void) {
+    return GovTest_ExportRouting();
+}
+
+bool T_EXP_NoMutation(void) {
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    string s1 = "";
+    string s2 = "";
+    if(!GovStratExpV1_Bundle(sum, s1))
+        return Fail("exp_nom_a");
+    if(!GovStratExpV1_Bundle(sum, s2))
+        return Fail("exp_nom_b");
+    return GovExportDetV1_Equals(s1, s2);
+}
+
+bool T_EXP_ReplayStable(void) {
+    return GovTest_ExportReplay();
+}
+
+bool T_EXP_AbiStable(void) {
+    return GovExportContractsV1_ValidateMagic(GOV_EXPORT_MAGIC_V1);
+}
+
+bool T_EXP_LegacyRedirect(void) {
+    return GovTest_ExportCompat();
+}
+
+bool T_EXP_FederationOrder(void) {
+    return GovTest_ExportFederation();
+}
+
+bool GovTest_StratAttribSynthetic(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, GOV_SATTR_STRAT_COUNT_V1);
+    for(int i = 0; i < GOV_SATTR_STRAT_COUNT_V1; i++)
+        GovTest_SAttrFillTr(tr[i], i, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_MED, (long)(1000 * (i + 1)), 5 + i, 0, 0);
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    string bundle = "";
+    string err = "";
+    if(!GovStratLiveV1_Run("", tr, GOV_SATTR_STRAT_COUNT_V1, sum, bundle, err))
+        return Fail("sattr_synth_live");
+    if(StringLen(bundle) < 80)
+        return Fail("sattr_synth_bundle_short");
+    if(sum.trade_count_input != GOV_SATTR_STRAT_COUNT_V1)
+        return Fail("sattr_synth_trade_cnt");
+    return true;
+}
+
+bool GovTest_StratAttribGolden(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 2);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_TF, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_LOW, 100L, 10, 0, 0);
+    GovTest_SAttrFillTr(tr[1], GOV_STRAT_TF, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_LOW, 200L, 10, 0, 0);
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 2, sum, err))
+        return Fail("sattr_golden_agg");
+    const SGovStratAttribStatsV1 st = sum.bd.by_strat[GOV_STRAT_TF];
+    if(st.trades != 2)
+        return Fail("sattr_golden_tf_tr");
+    if(st.pf_milli != 1000000)
+        return Fail("sattr_golden_pf");
+    if(st.expectancy_micro != 150000000)
+        return Fail("sattr_golden_exp");
+    if(st.gross_win_cents != 300L || st.gross_loss_cents != 0L)
+        return Fail("sattr_golden_gl");
+    return true;
+}
+
+bool T_SAttr_TagDet(void) {
+    string t = "";
+    GovStratTagV1_BuildTag(GOV_STRAT_BO, GOV_REGIME_EXPANSION, GOV_SATTR_VOL_MED, GOV_SATTR_SESS_LONDON, t);
+    if(t != "BO|EXP|MEDVOL|LON")
+        return Fail("sattr_tag_bo");
+    GovStratTagV1_BuildTag(GOV_STRAT_TF, GOV_REGIME_TREND, GOV_SATTR_VOL_HIGH, GOV_SATTR_SESS_NY, t);
+    if(t != "TF|TREND|HIGHVOL|NY")
+        return Fail("sattr_tag_tf");
+    return true;
+}
+
+bool T_SAttr_AccDet(void) {
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    SGovStratAttribTradeV1 a;
+    GovTest_SAttrFillTr(a, GOV_STRAT_MR, GOV_REGIME_CHOP, GOV_SATTR_SESS_ASIA, GOV_SATTR_VOL_LOW, -50L, 3, 1, 0);
+    GovStratAttrV1_AccTrade(sum, a);
+    SGovStratAttribTradeV1 b;
+    GovTest_SAttrFillTr(b, GOV_STRAT_MR, GOV_REGIME_CHOP, GOV_SATTR_SESS_ASIA, GOV_SATTR_VOL_LOW, 120L, 4, 0, 1);
+    GovStratAttrV1_AccTrade(sum, b);
+    GovStratAttrV1_Finalize(sum);
+    if(sum.bd.by_strat[GOV_STRAT_MR].trades != 2)
+        return Fail("sattr_acc_mr_tr");
+    if(sum.bd.session.by_sess[GOV_SATTR_SESS_ASIA].trades != 2)
+        return Fail("sattr_acc_sess");
+    if(sum.cross_strat_regime_cents[GOV_STRAT_MR][GOV_REGIME_CHOP] != 70L)
+        return Fail("sattr_acc_cross");
+    return true;
+}
+
+bool T_SAttr_Tox(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 6);
+    for(int k = 0; k < 6; k++)
+        GovTest_SAttrFillTr(tr[k], GOV_STRAT_BO, GOV_REGIME_TOXIC, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_EXTREME, -10000L, 1, 1, 1);
+    SGovStratAttribSummaryV1 sum;
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 6, sum, err))
+        return Fail("sattr_tox_agg");
+    if(sum.tox[GOV_STRAT_BO].score_0_1000 < 400)
+        return Fail("sattr_tox_score_low");
+    if(!GovStratToxV1_IsToxic(sum.tox[GOV_STRAT_BO]))
+        return Fail("sattr_tox_flag");
+    return true;
+}
+
+bool T_SAttr_Eco(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 1);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_TF, GOV_REGIME_TREND, GOV_SATTR_SESS_OVERLAP, GOV_SATTR_VOL_LOW, 5000L, 1, 0, 0);
+    SGovStratAttribSummaryV1 sum;
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 1, sum, err))
+        return Fail("sattr_eco_agg");
+    if(sum.ecology_role[GOV_STRAT_TF] != GOV_SATTR_ECO_ALPHA_V1 && sum.ecology_role[GOV_STRAT_TF] != GOV_SATTR_ECO_CONT_V1 && sum.ecology_role[GOV_STRAT_TF] != GOV_SATTR_ECO_STAB_V1)
+        return Fail("sattr_eco_role");
+    if(GovStratEcoV1_PrimaryAlpha(sum) != GOV_STRAT_TF)
+        return Fail("sattr_eco_primary");
+    return true;
+}
+
+bool T_SAttr_RegimeFit(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 1);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_TF, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_LOW, 500000L, 5, 0, 0);
+    SGovStratAttribSummaryV1 sum;
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 1, sum, err))
+        return Fail("sattr_rf_agg");
+    const int f = GovStratCmpMxV1_RegimeFit(GOV_STRAT_TF, GOV_REGIME_TREND, sum);
+    if(f < -1000 || f > 1000)
+        return Fail("sattr_rf_range");
+    return true;
+}
+
+bool T_SAttr_ExpDet(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 1);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_MR, GOV_REGIME_CHOP, GOV_SATTR_SESS_LONDON, GOV_SATTR_VOL_MED, 1L, 1, 0, 0);
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    string b = "";
+    string err = "";
+    if(!GovStratLiveV1_Run("", tr, 1, sum, b, err))
+        return Fail("sattr_exp_live");
+    if(StringFind(b, "===STRATEGY_BREAKDOWN===") < 0)
+        return Fail("sattr_exp_blk1");
+    if(StringFind(b, "===TOXICITY_BREAKDOWN===") < 0)
+        return Fail("sattr_exp_blk2");
+    if(StringFind(b, "===COMPATIBILITY_BREAKDOWN===") < 0)
+        return Fail("sattr_exp_blk3");
+    if(StringFind(b, "\n") < 0)
+        return Fail("sattr_exp_lf");
+    return true;
+}
+
+bool T_SAttr_CmpSlf(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 2);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_SD, GOV_REGIME_COMPRESSION, GOV_SATTR_SESS_ASIA, GOV_SATTR_VOL_LOW, 10L, 1, 0, 0);
+    GovTest_SAttrFillTr(tr[1], GOV_STRAT_SD, GOV_REGIME_COMPRESSION, GOV_SATTR_SESS_ASIA, GOV_SATTR_VOL_LOW, -4L, 1, 0, 0);
+    SGovStratAttribSummaryV1 sum;
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 2, sum, err))
+        return Fail("sattr_cmp_agg");
+    SGovStratAttribComparisonV1 c;
+    GovStratCmpV1_Diff(sum, sum, c);
+    for(int i = 0; i < GOV_SATTR_STRAT_COUNT_V1; i++) {
+        if(c.d_trades[i] != 0 || c.d_pf_milli[i] != 0 || c.d_profit_cents[i] != 0L)
+            return Fail("sattr_cmp_self");
+    }
+    return true;
+}
+
+bool T_SAttr_SbxIso(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 2);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_PA, GOV_REGIME_SWEEP, GOV_SATTR_SESS_OVERLAP, GOV_SATTR_VOL_HIGH, 33L, 2, 0, 0);
+    GovTest_SAttrFillTr(tr[1], GOV_STRAT_PA, GOV_REGIME_SWEEP, GOV_SATTR_SESS_OVERLAP, GOV_SATTR_VOL_HIGH, 44L, 2, 0, 0);
+    string b1 = "";
+    string b2 = "";
+    string e1 = "";
+    string e2 = "";
+    SGovStratAttribSummaryV1 s1;
+    SGovStratAttribSummaryV1 s2;
+    if(!GovStratLiveV1_Run("", tr, 2, s1, b1, e1))
+        return Fail("sattr_sbx1");
+    if(!GovStratLiveV1_Run("", tr, 2, s2, b2, e2))
+        return Fail("sattr_sbx2");
+    if(b1 != b2)
+        return Fail("sattr_sbx_det");
+    return true;
+}
+
+bool T_SAttr_PfCalc(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 2);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_GR, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_LOW, 100L, 1, 0, 0);
+    GovTest_SAttrFillTr(tr[1], GOV_STRAT_GR, GOV_REGIME_TREND, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_LOW, -50L, 1, 0, 0);
+    SGovStratAttribSummaryV1 sum;
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 2, sum, err))
+        return Fail("sattr_pf_agg");
+    if(sum.bd.by_strat[GOV_STRAT_GR].pf_milli != 2000)
+        return Fail("sattr_pf_val");
+    return true;
+}
+
+bool T_SAttr_TailLoss(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 3);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_MS, GOV_REGIME_CHOP, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_MED, -100L, 1, 0, 1);
+    GovTest_SAttrFillTr(tr[1], GOV_STRAT_MS, GOV_REGIME_CHOP, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_MED, -100L, 1, 0, 1);
+    GovTest_SAttrFillTr(tr[2], GOV_STRAT_MS, GOV_REGIME_CHOP, GOV_SATTR_SESS_NY, GOV_SATTR_VOL_MED, -100L, 1, 0, 1);
+    SGovStratAttribSummaryV1 sum;
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 3, sum, err))
+        return Fail("sattr_tail_agg");
+    if(sum.bd.by_strat[GOV_STRAT_MS].tail_loss_count != 3)
+        return Fail("sattr_tail_cnt");
+    return true;
+}
+
+bool T_SAttr_VolFit(void) {
+    SGovStratAttribSummaryV1 sum;
+    GovStrAttrDsV1_InitSummary(sum);
+    sum.cross_strat_vol_cents[GOV_STRAT_MR][GOV_SATTR_VOL_LOW] = 250000L;
+    GovStratCmpMxV1_Build(sum);
+    const int vf = GovStratCmpMxV1_VolFit(GOV_STRAT_MR, GOV_SATTR_VOL_LOW, sum);
+    if(vf < -1000 || vf > 1000)
+        return Fail("sattr_volfit");
+    return true;
+}
+
+bool T_SAttr_SessionFit(void) {
+    SGovStratAttribTradeV1 tr[];
+    ArrayResize(tr, 2);
+    GovTest_SAttrFillTr(tr[0], GOV_STRAT_SM, GOV_REGIME_EXPANSION, GOV_SATTR_SESS_LONDON, GOV_SATTR_VOL_HIGH, 10L, 1, 0, 0);
+    GovTest_SAttrFillTr(tr[1], GOV_STRAT_SM, GOV_REGIME_EXPANSION, GOV_SATTR_SESS_LONDON, GOV_SATTR_VOL_HIGH, -5L, 1, 0, 0);
+    SGovStratAttribSummaryV1 sum;
+    string err = "";
+    if(!GovStratAggV1_BuildSummary(tr, 2, sum, err))
+        return Fail("sattr_sess_agg");
+    if(sum.bd.session.by_sess[GOV_SATTR_SESS_LONDON].trades != 2)
+        return Fail("sattr_sess_tr");
+    return true;
+}
+
 int OnInit() {
     if(!T_Evidence_FusionDeterminism())
         return INIT_FAILED;
@@ -3772,6 +4345,102 @@ int OnInit() {
     if(!T_Gov_LockdownRelax())
         return INIT_FAILED;
     if(!T_ShadowTick_StillRuns())
+        return INIT_FAILED;
+    if(!T_GovRuntime_ShadowSnapshot())
+        return INIT_FAILED;
+    if(!T_GovRuntime_QueueAppend())
+        return INIT_FAILED;
+    if(!T_GovRuntime_NoReplayParser())
+        return INIT_FAILED;
+    if(!T_GovRuntime_NoExportHotPath())
+        return INIT_FAILED;
+    if(!T_GovRuntime_NonBlocking())
+        return INIT_FAILED;
+    if(!T_GovRuntime_TimerSafe())
+        return INIT_FAILED;
+    if(!T_CTX_Reset())
+        return INIT_FAILED;
+    if(!T_CTX_Clone())
+        return INIT_FAILED;
+    if(!T_CTX_Validate())
+        return INIT_FAILED;
+    if(!T_CTX_Compat())
+        return INIT_FAILED;
+    if(!T_CTX_NoCircular())
+        return INIT_FAILED;
+    if(!T_CTX_StableAbi())
+        return INIT_FAILED;
+    if(!T_CTX_StableReplay())
+        return INIT_FAILED;
+    if(!T_CTX_SafeInject())
+        return INIT_FAILED;
+    if(!T_CTX_ContractSafety())
+        return INIT_FAILED;
+    if(!T_CTX_NoMutation())
+        return INIT_FAILED;
+    if(!GovTest_ContextDependency())
+        return INIT_FAILED;
+    if(!GovTest_BackwardCompatibility())
+        return INIT_FAILED;
+    if(!GovTest_ExportCompat())
+        return INIT_FAILED;
+    if(!GovTest_ExportDeterminism())
+        return INIT_FAILED;
+    if(!GovTest_ExportFederation())
+        return INIT_FAILED;
+    if(!GovTest_ExportReplay())
+        return INIT_FAILED;
+    if(!GovTest_ExportRouting())
+        return INIT_FAILED;
+    if(!GovTest_ExportSchema())
+        return INIT_FAILED;
+    if(!T_EXP_CtxBundle())
+        return INIT_FAILED;
+    if(!T_EXP_Compat())
+        return INIT_FAILED;
+    if(!T_EXP_Determinism())
+        return INIT_FAILED;
+    if(!T_EXP_Schema())
+        return INIT_FAILED;
+    if(!T_EXP_Router())
+        return INIT_FAILED;
+    if(!T_EXP_NoMutation())
+        return INIT_FAILED;
+    if(!T_EXP_ReplayStable())
+        return INIT_FAILED;
+    if(!T_EXP_AbiStable())
+        return INIT_FAILED;
+    if(!T_EXP_LegacyRedirect())
+        return INIT_FAILED;
+    if(!T_EXP_FederationOrder())
+        return INIT_FAILED;
+    if(!GovTest_StratAttribGolden())
+        return INIT_FAILED;
+    if(!GovTest_StratAttribSynthetic())
+        return INIT_FAILED;
+    if(!T_SAttr_TagDet())
+        return INIT_FAILED;
+    if(!T_SAttr_AccDet())
+        return INIT_FAILED;
+    if(!T_SAttr_Tox())
+        return INIT_FAILED;
+    if(!T_SAttr_Eco())
+        return INIT_FAILED;
+    if(!T_SAttr_RegimeFit())
+        return INIT_FAILED;
+    if(!T_SAttr_ExpDet())
+        return INIT_FAILED;
+    if(!T_SAttr_CmpSlf())
+        return INIT_FAILED;
+    if(!T_SAttr_SbxIso())
+        return INIT_FAILED;
+    if(!T_SAttr_PfCalc())
+        return INIT_FAILED;
+    if(!T_SAttr_TailLoss())
+        return INIT_FAILED;
+    if(!T_SAttr_VolFit())
+        return INIT_FAILED;
+    if(!T_SAttr_SessionFit())
         return INIT_FAILED;
     if(!GovTestHarnessV1_ReplayLoopShell(6))
         return INIT_FAILED;

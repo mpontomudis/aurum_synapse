@@ -26,5 +26,6 @@
 #include "../GovernanceTemporalIntelligenceV1/GovernanceTemporalIntelligenceV1.mqh"
 #include "../GovernanceEcologyIntelligenceV1/GovernanceEcologyIntelligenceV1.mqh"
 #include "../GovernanceConsciousnessIntelligenceV1/GovernanceConsciousnessIntelligenceV1.mqh"
+#include "../GovernanceStrategyAttributionIntelligenceV1/GovernanceStrategyAttributionIntelligenceV1.mqh"
 
 #endif // __AURUM_GOV_REPLAY_VIS_INTEL_V1_MQH__

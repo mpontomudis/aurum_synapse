@@ -34,6 +34,8 @@
 #include "Telemetry/TelemetryPersistence.mqh"
 #endif
 
+// GOV_RUNTIME_INJECTION_CANDIDATE — optional future: shadow queue init / feature flags (no wiring in this baseline).
+
 //+------------------------------------------------------------------+
 //| INPUT PARAMETERS                                                 |
 //+------------------------------------------------------------------+
@@ -271,6 +273,7 @@ void Aurum_LogH2GateOncePerDay(const datetime barTime, const ENUM_SIGNAL_REJECT_
 //| Expert initialization function                                   |
 //+------------------------------------------------------------------+
 int OnInit() {
+    // GOV_COLD_PATH_ONLY — OnInit may host shadow queue allocation / file-common paths; never in OnTick hot path.
     Print("========================================");
     Print("  AURUM SYNAPSE v2.0 INITIALIZATION");
     Print("========================================");
@@ -406,6 +409,8 @@ int OnInit() {
     
     //--- Success
     g_initialized = true;
+
+    // GOV_RUNTIME_INJECTION_CANDIDATE — post-init shadow lane hooks (must remain non-blocking; default OFF).
     
     //--- Initialize last bar time to prevent immediate processing on first tick
     g_lastBarTime = iTime(_Symbol, _Period, 0);
@@ -419,6 +424,7 @@ int OnInit() {
     Logger::Info("  INITIALIZATION COMPLETE - READY TO TRADE");
     Logger::Info("========================================");
 #ifdef AURUM_TELEMETRY_T2
+    // GOV_COLD_PATH_ONLY — timer-based persistence drain; safe for deferred governance drain patterns.
     TelemetryT2_Init();
     if(TelemetryT2_IsReady())
         EventSetTimer(TELEMETRY_T2_TIMER_MS);
@@ -460,6 +466,7 @@ void OnDeinit(const int reason) {
 //| Expert tick function - MAIN TRADING LOGIC                        |
 //+------------------------------------------------------------------+
 void OnTick() {
+    // GOV_RUNTIME_INJECTION_CANDIDATE — tick entry: any shadow work must respect new-bar gate + reentrancy guard.
     if(!g_initialized) {
         return;
     }
@@ -485,6 +492,8 @@ void OnTick() {
     //--- NEW BAR detected - proceed with processing
     g_lastBarTime = currentBarTime;
     g_totalTrades++;  // Count bars processed
+
+    // GOV_SHADOW_SAFE_POINT — bar-open boundary: cheapest place for per-bar shadow snapshot (no I/O).
     
     const int diagOpenCount = (g_tradeManager != NULL ? g_tradeManager.CountOpenPositions() : -1);
     
@@ -497,6 +506,7 @@ void OnTick() {
     
     //--- 1. Risk authorization (execution) — observability may continue in Phase 3D lab mode
     const bool execRiskAllows = g_riskManager.CanTrade();
+    // GOV_RUNTIME_INJECTION_CANDIDATE — align native CanTrade() with shadow execution_allowed (observe-only v1).
     if(!execRiskAllows) {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_RISK_HALT);
         TradeDiag_Blocked("RiskManager", _Symbol, 0.0, diagOpenCount);
@@ -544,6 +554,8 @@ void OnTick() {
     
     MarketState marketState = g_marketAnalyzer.GetState();
     Aurum_LogH2MarketStateIfChanged(marketState, currentBarTime);
+
+    // GOV_SHADOW_SAFE_POINT — pre-signal: regime / state available for lightweight shadow capture.
     
     //--- 5. Evaluate all strategies
     g_strategyManager.EvaluateAll(marketState);
@@ -650,6 +662,7 @@ void OnTick() {
                         if(!h2Diag) {
                             Print("[TRADE] *** EXECUTING TRADE ***");
                         }
+                        // GOV_RUNTIME_INJECTION_CANDIDATE — pre-order shadow snapshot hook (must never block native path).
                         ExecuteTrade(consensus, marketState, qualityScore);
                     }
                 }
@@ -666,9 +679,12 @@ void OnTick() {
     TelemetryT2_EnqueueCopy(s_telemetryBarRow);
 #endif
 #endif
+
+    // GOV_COLD_PATH_ONLY — ring-buffer / replay-append / forensic export must drain here or in OnTimer, not above.
     
     //--- 9. Manage existing positions (trailing stops, etc) — suppressed during risk halt (no modifies)
     if(execRiskAllows)
+        // GOV_SHADOW_SAFE_POINT — post-position / modify path; shadow may observe fills vs trail state.
         ManageOpenPositions();
     
     //--- 10. Update info panel
@@ -684,6 +700,7 @@ void OnTick() {
 //| Timer — T2 persistence drain only (cold path)                  |
 //+------------------------------------------------------------------+
 void OnTimer() {
+    // GOV_COLD_PATH_ONLY — background lane; governance drain must mirror this pattern (throttled).
     TelemetryT2_OnTimerDrain();
 }
 #endif
@@ -694,6 +711,7 @@ void OnTimer() {
 void OnTradeTransaction(const MqlTradeTransaction &trans,
                         const MqlTradeRequest &request,
                         const MqlTradeResult &result) {
+    // GOV_SHADOW_SAFE_POINT — post-deal / risk accounting hook; future shadow compares native vs replay ledger.
     if(!g_initialized || g_riskManager == NULL)
         return;
     if(trans.type != TRADE_TRANSACTION_DEAL_ADD)
@@ -902,6 +920,7 @@ bool CanOpenNewPosition(ENUM_SIGNAL_REJECT_REASON &rejectOut) {
 //| Execute trade                                                    |
 //+------------------------------------------------------------------+
 void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualityScore) {
+    // GOV_RUNTIME_INJECTION_CANDIDATE — execution hot path: shadow must be append-only / non-blocking only.
     //--- Reentrancy guard: prevent nested trade execution (safety vs callback/event loops)
     static bool s_inExecuteTrade = false;
     if(s_inExecuteTrade) {
@@ -1076,6 +1095,7 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
 //| Manage open positions (trailing stops, etc)                      |
 //+------------------------------------------------------------------+
 void ManageOpenPositions() {
+    // GOV_SHADOW_SAFE_POINT — trailing / modify batching; no governance FSM decisions here (v1).
     if(g_tradeManager == NULL) return;
     
     //--- Update trailing stops

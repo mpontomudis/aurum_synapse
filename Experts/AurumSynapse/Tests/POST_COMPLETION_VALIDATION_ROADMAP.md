@@ -3,8 +3,8 @@
 
 **Version:** 2.0  
 **Status:** Phase 1 complete — **Phase 2** — **§2.4 Require sweep ✅** (`2.4.A`–`2.4.D` logged); **FY net-max lock** still **`2.2.D`** (Q**60**, all Require **false**) — **P0:** **§3.8** **MomentumScalp** **Aug–Dec** silence + **`2.4.C`** Inputs verify *(**§3.1 TrendFollowing** **VERIFIED CORE** — **§3.9** **462**-row lock **`InpMaxSpreadPoints = 50`** + **Phase 3D** contamination **rejected** — see **§Test 3.1** + **PHASE 3D**)* — **CHECKPOINT 3.10** **COMPLETE** (**May 11, 2026**): **V1 production lock** **TF+BO**; **`SupplyDemand`** **ensemble-offender** → **Phase 5** forensic (**PHASE 4A** triple capture **superseded** by pairwise matrix — **see CHECKPOINT 3.10**); **Phase 4** **rollup** **May 11, 2026**: **4.1** **INCONCLUSIVE** · **4.2** **PASS behavioral** · **4.3** **PASS behavioral** **post-fix** · **4.4** **PASS** — **PARTIAL** — **see** **PHASE 4** **checklist**; **Phase 5** — **CHECKPOINT 5.1 — TF+BO Q-sweep** (**Q55/Q60/Q65**) **logged** (**Q60** **optimum** — **see** **Phase 5** **below** **Phase 5A**); **CHECKPOINT 3.12** **session** **forensics** (**S4/S5**) **logged**; **CHECKPOINT 3.13** **Trade execution diagnostics** (`Core/TradeDiag.mqh`, **`[TRADE_BLOCKED]`** / **`[TRADE_ALLOWED]`**) **shipped** — see **ENGINEERING LOCK §D**; **GATE-0** **§ SAFE DEVELOPMENT FOUNDATION** (pre–**STEP 1A** telemetry) **documented**; **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** spec: passive **`AS_TELEMETRY_V1`**, T0–T3) **documented**  
-**Governance checkpoint:** **2026-05-10** — **PHASE 20** baseline (`PHASE_20_STABLE_RUNTIME_BASELINE`) — see **`# PHASE 20 COMPLETE — GOVERNANCE_CONSCIOUSNESS_INTELLIGENCE_V1`**.  
-**Last Updated:** May 11, 2026 — **Lot sizing / execution engineering** (**`LOT_SIZE_MAX_BASE`** cap scope, **`LOT_FIXED_PER_BALANCE`** + **`InpBalanceStep`** / **`InpBaseLotPerStep`**, **`ENUM_LOT_METHOD`** order + **preset migration** — see **ENGINEERING LOCK — Lot sizing & execution**); **CHECKPOINT 3.12** **Session Regime Continuity Forensics** (**TF+BO**, **Q65**, **TEST S4/S5** **WIT** **windows**) **logged**; **CHECKPOINT 4C** **weekday** **hardening** **forensics** **(W1–W3**, **TF+BO**, **Asia** **00→07** **WIT**, **Q65**); **CHECKPOINT 5.1 — TF+BO Quality Sensitivity Sweep** (**Q55/Q60/Q65**); **Phase 4.3** consec **post-fix**; **4.1** daily loss Mar **2025**; **4.4** position limit; **4.2** equity DD; **CHECKPOINT 3.10** complete; **§Test 3.1** spread lock; **§3.1** **462** / **§3.2** **398** / **§3.4** **479**; **§ ENGINEERING LOCK §E** — **FPB vs low trade count** **operational audit** (external **TF+BO** lab: time filter **ON**, **$500** deposit, step **500** / **0.01** — **~20** positions, **session/weekday** concentration — **rank `Reason=`** before blaming FPB formula); **§ SAFE DEVELOPMENT FOUNDATION** (**GATE-0** — backup / rollback / stable core); **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** — passive **`AS_TELEMETRY_V1`**, T0–T3, non-interference contract — before regime engine)
+**Governance checkpoint:** **2026-05-10** — **PHASE 20** baseline (`PHASE_20_STABLE_RUNTIME_BASELINE`) — see **`# PHASE 20 COMPLETE — GOVERNANCE_CONSCIOUSNESS_INTELLIGENCE_V1`**; **federation engineering track** (**attribution + strategic context + export federation**) **`STATUS: COMPLETE`** — see **`# GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1`**, **`# GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1`**, **`# GOVERNANCE_EXPORT_FEDERATION_V1`**, **`# COMPILE STABILIZATION STATUS`**.  
+**Last Updated:** May 11, 2026 — **Lot sizing / execution engineering** (**`LOT_SIZE_MAX_BASE`** cap scope, **`LOT_FIXED_PER_BALANCE`** + **`InpBalanceStep`** / **`InpBaseLotPerStep`**, **`ENUM_LOT_METHOD`** order + **preset migration** — see **ENGINEERING LOCK — Lot sizing & execution**); **CHECKPOINT 3.12** **Session Regime Continuity Forensics** (**TF+BO**, **Q65**, **TEST S4/S5** **WIT** **windows**) **logged**; **CHECKPOINT 4C** **weekday** **hardening** **forensics** **(W1–W3**, **TF+BO**, **Asia** **00→07** **WIT**, **Q65**); **CHECKPOINT 5.1 — TF+BO Quality Sensitivity Sweep** (**Q55/Q60/Q65**); **Phase 4.3** consec **post-fix**; **4.1** daily loss Mar **2025**; **4.4** position limit; **4.2** equity DD; **CHECKPOINT 3.10** complete; **§Test 3.1** spread lock; **§3.1** **462** / **§3.2** **398** / **§3.4** **479**; **§ ENGINEERING LOCK §E** — **FPB vs low trade count** **operational audit** (external **TF+BO** lab: time filter **ON**, **$500** deposit, step **500** / **0.01** — **~20** positions, **session/weekday** concentration — **rank `Reason=`** before blaming FPB formula); **§ SAFE DEVELOPMENT FOUNDATION** (**GATE-0** — backup / rollback / stable core); **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** — passive **`AS_TELEMETRY_V1`**, T0–T3, non-interference contract — before regime engine); **Governance federation stabilization** (**GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1** + **GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1** + **GOVERNANCE_EXPORT_FEDERATION_V1**) **roadmap-complete** **2026-05-10** (re-verify compile after each MT5 bump).
 
 **Addendum (2026-05-10 — telemetry-roadmap Phase 3B, join validation):** **GOLDEN FIXTURE SUITE V1 COMPLETE (2026-05-10)** — `Case_001_BasicJoin` through **`Case_010_TimezoneEdge_StaticOffset`** **PASS** deterministically (`Tests/TestTelemetryJoinValidation.mq5`); golden fixtures + **byte-identical** regression; backward-only **`MAX(bar_utc ≤ d_time_utc)`**; **`ORPHAN_DEAL`**; duplicate-candidate / duplicate-ticket / gap / future-leak guards; partial-close + position rollup annotations + multi-context attribution + UTC edge / static-offset **metadata** policy frozen in **`TelemetryAnalytics/PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`** (**§A1–A10**). **Milestone tag:** `PHASE_3B_GOLDEN_FIXTURE_SUITE_COMPLETE`.
 
@@ -14,7 +14,9 @@
 
 **Governance intelligence program (PHASES 8–20):** — **COMPLETE** (architecture + modules under `Experts/AurumSynapse/TelemetryAnalytics/Governance*`; deterministic harness **`Tests/TestGovernanceStateMachineV1.mq5`**; replay umbrella **`GovernanceReplayVisualIntelligenceV1.mqh`**; production join path append-only **`GOV_EXEC_V1`** via **`ProductionGovernanceOrchestrationJoinHookV1`**). **Checkpoint commit message:** `PHASE_20_GOVERNANCE_CONSCIOUSNESS_COMPLETE`. **Rollback tag:** `PHASE_20_STABLE_RUNTIME_BASELINE`.
 
-**Next (post–PHASE 20 baseline):** focus shifts from feature expansion to **stability / survivability / orchestration / runtime validation** — see **NEXT MAJOR MILESTONE** inside **`# PHASE 20 COMPLETE — GOVERNANCE_CONSCIOUSNESS_INTELLIGENCE_V1`** below. Adaptive **`AS_JOINED_V2`** / regime governor items remain **charter-gated** (**no** change to Golden Suite V1 regression law, **`expected_joined.csv`**, or **`AS_JOINED_V1`** unless separately chartered).
+**Governance federation stabilization (post–PHASE 20 — engineering track, 2026-05-10):** **GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1**, **GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1**, and **GOVERNANCE_EXPORT_FEDERATION_V1** are **`STATUS: COMPLETE`** (deterministic attribution + `SGovStrategicContextV1` + export federation bundle under `TelemetryAnalytics/GovernanceExportFederationV1/`; see milestone sections and **# COMPILE STABILIZATION STATUS** below). **Era framing:** program position transitions **ERA 2 — Governance Observability** (replay / incident / meta / harness visibility) toward **ERA 3 — Governance Intelligence** (attribution, ecology, toxicity, compatibility analytics) with **early ERA 4 — Federated Governance** foundations (context routing, export bus, ABI guards, replay-determinism helpers).
+
+**Next (post–PHASE 20 baseline):** primary engineering focus remains **stability / survivability / orchestration / runtime validation** — **now extended** with **federated governance** surfaces (**context**, **deterministic export**, **attribution harness**) documented under **`# GOVERNANCE_*`** / **`# COMPILE STABILIZATION STATUS`** / **`# MASSIVE BACKTEST VALIDATION — 2022`** below. Adaptive **`AS_JOINED_V2`** / regime governor items remain **charter-gated** (**no** change to Golden Suite V1 regression law, **`expected_joined.csv`**, or **`AS_JOINED_V1`** unless separately chartered).
 
 ### TELEMETRY INTELLIGENCE MILESTONES (PHASES 4–7) — **COMPLETE**
 
@@ -82,7 +84,112 @@
 
 **Sibling layer (umbrella order, same baseline):** **ECOLOGY_INTELLIGENCE_V1** (`GovernanceEcologyIntelligenceV1`) — `[COMPLETE]` (loaded before consciousness in `GovernanceReplayVisualIntelligenceV1.mqh`; not renumbered to avoid collision with roadmap **PHASE 5** — survivability analytics — elsewhere in this file).
 
+### ERA TRANSITION — OBSERVABILITY → INTELLIGENCE → FEDERATION
+
+| Era | Theme | Roadmap anchor (non-exhaustive) |
+|-----|--------|----------------------------------|
+| **ERA 2 — Governance Observability** | Replay, containment, policy load, shadow tick, evidence, UTF-8 harnesses | Phases **8–20** + replay umbrella |
+| **ERA 3 — Governance Intelligence** | Strategy attribution, toxicity, ecology, compatibility, deterministic exports | **GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1** + export/schema layers |
+| **ERA 4 — Federated Governance (early)** | Context bag, routing, export federation bus, ABI/version guards, replay hash equality | **GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1** + **GOVERNANCE_EXPORT_FEDERATION_V1** |
+
+---
+
+# GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1
+
+**STATUS:** **COMPLETE**
+
+**Deliverables (frozen contract):** `TelemetryAnalytics/GovernanceStrategyAttributionIntelligenceV1/` — dataset / tagger / engine / toxicity / ecology / compatibility matrix / export / comparator / sandbox / live integration / umbrella include after consciousness in `GovernanceReplayVisualIntelligenceV1.mqh`. **Harness:** synthetic + golden paths + `T_SAttr_*` in `Tests/TestGovernanceStateMachineV1.mq5`.
+
+---
+
+# GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1
+
+**STATUS:** **COMPLETE**
+
+**Deliverables:** `TelemetryAnalytics/GovernanceStrategicContextRefactorV1/` — `SGovStrategicContextV1`, contracts, dependency map, compile-stability helpers, context router, compatibility notes; attribution aggregation and live runners use **context-first** signatures with **legacy overloads** preserved. **Strategic live** symbols disambiguated: **`GovStrategicAggV1_BuildSummary`**, **`GovStrategicLiveV1_Run`**, **`GovStrategicExpV1_Bundle`** (vs attribution `GovStratAggV1_*` / `GovStratLiveV1_*` / `GovStratExpV1_*`).
+
+---
+
+# GOVERNANCE_EXPORT_FEDERATION_V1
+
+**STATUS:** **COMPLETE**
+
+**Deliverables:** `TelemetryAnalytics/GovernanceExportFederationV1/` — federation contracts (ABI + magic), deterministic writer, schema registry, federation core (reset/append/finalize), replay determinism (`Hash` / `Equals` / `Verify`), telemetry counters, context adapter stubs, export router, bundle umbrella; **attribution** `GovStratExpV1_Bundle(ctx, sum, out)` + **legacy** 2-arg form; **strategic** export renamed to **`GovStrategicExpV1_Bundle`** with distinct include guard **`__AURUM_GOV_STRATEGIC_EXPORT_V1_MQH__`** vs attribution **`__AURUM_GOV_STRAT_ATTR_EXP_V1_MQH__`**.
+
+---
+
+# COMPILE STABILIZATION STATUS
+
+**Scope:** MetaEditor compile of **`Tests/TestGovernanceStateMachineV1.mq5`** (governance kernel + replay + attribution + context + export federation harness).
+
+| Stabilization item | Status |
+|--------------------|--------|
+| **Include guard collision** (strategic vs attribution **live** and **export** headers sharing `__AURUM_GOV_STRAT_*_V1` guards) | **Resolved** — unique guards + renamed strategic entry points |
+| **Strategic vs attribution namespace separation** | **Complete** — `GovStrategic*` vs `GovStrat*` (aggregation / live / export) |
+| **Export ABI separation** | **Complete** — `GovStrategicExpV1_Bundle` (11-arg pipeline) vs `GovStratExpV1_Bundle` (context + attribution summary + legacy 2-arg) |
+| **Deterministic export federation** | **Stabilized** — LF-only writer, schema tokens, `GovExportDetV1_*` replay helpers |
+| **Context federation** | **Stabilized** — `SGovStrategicContextV1` + router inject/resolve + `T_CTX_*` / `GovTest_Context*` tests |
+| **Replay determinism foundation** | **Established** — export string equality + djb2-style `GovExportDetV1_Hash` for regression gates |
+
+**Compile result (roadmap contract — re-verify after each MT5 / toolchain bump):** **0 errors**, **0 warnings** on `TestGovernanceStateMachineV1.mq5`.
+
+---
+
+# MASSIVE BACKTEST VALIDATION — 2022
+
+**Program:** orchestrated **2022** multi-scenario lab (labels **TEST A–G** below) executed under governance-aware configuration — objective is **governance + attribution validation**, not single-strategy profit claims.
+
+| Test | Scenario focus |
+|------|------------------|
+| **TEST A** | **PURE TREND** — trend-following dominance, minimal MR contamination |
+| **TEST B** | **PURE MR V2** — mean-reversion emphasis, trend participation suppressed |
+| **TEST C** | **ULTRA PURE CONTINUATION** — continuation harvesting under strict purity |
+| **TEST D** | **CONTEXTUAL CONTINUATION** — continuation gated by session / regime context |
+| **TEST E** | **ADAPTIVE REWARD EXTRACTION** — reward shaping / extraction under governance caps |
+| **TEST F** | **Hybrid / cross-regime stress** — mixed ecology (orchestration stress sibling to A–E) |
+| **TEST G** | **Governance saturation / multi-strategy orchestration** — orchestration + drawdown stability |
+
+**Insights (synthesis — engineering, not marketing):**
+
+- **Pure trend continuation** is **not yet robust as a standalone** edge; continuation quality remains regime- and session-sensitive.  
+- **Pure mean reversion** in isolation **failed to sustain PF > 1** under 2022 stress; MR remains a **stabilizer / diversifier**, not a solo profit engine without filters.  
+- **Governance filtering** dominates **raw entry frequency** for survivability; fewer, higher-quality paths outperform “always on” participation.  
+- **Contextual continuation (TEST D)** is **more resilient** than ultra-pure continuation (TEST C) when tape shifts — context reduces brittle overfitting to a single microstructure.  
+- **Adaptive reward extraction (TEST E)** improves **expectancy stability** (lower variance of per-trade contribution) more than it inflates peak PF.  
+- **Hybrid governance orchestration** (TEST F / G) produces **more stable drawdown paths** vs single-axis extremes — capital path less spiky even when headline PF is flat.  
+- **PF band** observed drifting toward **equilibrium (~0.94–0.98)** under multi-strategy competition — **not yet profitable as a whole**, but **governance quality metrics improved materially** (health, containment, replay consistency).  
+- **Attribution telemetry** validated end-to-end in harness (strategy / regime / session / vol slices + cross grids).  
+- **Strategy ecology** begins to **separate** primary alpha vs spam / vol-amplifier roles in telemetry (not live trading decisions).  
+- **Toxicity separation** becomes **actionable in analytics** (scores + regime mismatch) without mutating execution path.  
+- **Multi-strategy orchestration** shows **early edge** in **risk-adjusted path shape** (DD stability) even when absolute return remains sub-target.
+
+---
+
+# CURRENT ARCHITECTURE STATUS
+
+**As of post–PHASE 20 + federation track**, the codebase exposes the following **observational / offline** layers (harness-first; not all wired to production `OnTick`):
+
+- **Governance Context Federation** — `SGovStrategicContextV1` + reset / validate / clone / bounded trade staging.  
+- **Attribution Intelligence Layer** — `GovernanceStrategyAttributionIntelligenceV1` (trade → breakdown → finalize).  
+- **Toxicity Analytics Layer** — integer scores, regime mismatch signals.  
+- **Strategy Ecology Layer** — deterministic role codes (alpha / stabilizer / toxic / etc.).  
+- **Compatibility Matrix Layer** — regime / vol fit grids.  
+- **Deterministic Export Federation** — `GovernanceExportFederationV1/*` + schema registry + LF writer.  
+- **Replay Determinism Infrastructure** — `GovExportDetV1_*` + governance replay UTF-8 pipelines unchanged in contract.  
+- **ABI Stability Layer** — `GOV_EXPORT_ABI_VER_V1` / `GOV_EXPORT_MAGIC_V1`, `GOV_CTX_API_V1`, distinct export include guards.  
+- **Strategic Runtime Isolation** — strategic live/export symbols isolated from attribution (`GovStrategic*`).  
+- **Context Routing Infrastructure** — `GovCtxRouterV1_*` (build / link / inject / resolve).  
+- **Federated Governance Export Bus** — single bundle include + attribution `GovStratExpV1_Bundle(ctx, sum, out)` entry point.
+
+---
+
 ### NEXT MAJOR MILESTONE
+
+**Timeline position (rolling):**
+
+- **COMPLETED:** Phases **1–14** (validation + early telemetry) **stabilized**; Phases **15–20** governance intelligence **operational**; **early Phase 15–18-class foundations** (resilience → civilization tracks) **frozen in harness**; plus **GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1**, **GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1**, **GOVERNANCE_EXPORT_FEDERATION_V1** **COMPLETE** (this section).  
+- **ACTIVE:** **Governance intelligence federation** (cross-layer contracts), **export federation** (schema + determinism gates), **context federation** (injection + validation), **replay determinism** (hash/equality harnesses), **MASSIVE BACKTEST ORCHESTRATION** (2022 program above + tester discipline).  
+- **NEXT TARGET:** **Governance Memory Engine** · **Governance Diff Engine** · **Governance Knowledge Graph** · **Cross-Backtest Federation** · **Evolutionary Governance Engine** (charter-gated; no Golden Suite V1 regression law change without separate charter).
 
 **MASSIVE BACKTEST ORCHESTRATION**  
 **SHADOW RUNTIME VALIDATION**  

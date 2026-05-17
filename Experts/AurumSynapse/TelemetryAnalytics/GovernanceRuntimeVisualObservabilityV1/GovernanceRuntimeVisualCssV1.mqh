@@ -41,8 +41,14 @@ inline string GovRuntimeVisualCssV1_Embedded(void)
    c += ".sev-crit{color:#f85149;font-weight:700;}\n";
    c += ".sev-warn{color:#d29922;font-weight:700;}\n";
    c += ".sev-opt{color:#58a6ff;font-weight:600;}\n";
-   c += ".sev-stab{color:#3fb950;font-weight:600;}\n";
-   c += ".mono{font-family:ui-monospace,Consolas,monospace;font-size:0.78rem;}\n";
+   c += ".sev-info{color:#58a6ff;font-weight:600;}\n";
+   c += ".sev-high{color:#f85149;font-weight:700;}\n";
+   c += ".fail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-top:8px;}\n";
+   c += ".fail-card{border:1px solid #30363d;border-radius:8px;padding:10px;background:#0d1117;}\n";
+   c += ".lin-toxic{border-color:#da3633 !important;}\n";
+   c += ".lin-summary{margin-bottom:10px;font-size:0.78rem;}\n";
+   c += ".lin-forest{display:flex;flex-direction:column;gap:10px;}\n";
+   c += ".lin-card{font-size:0.85rem;}\n";
    return c;
 }
 

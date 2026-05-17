@@ -7,6 +7,10 @@
 #include "GovernancePositionLineageDatasetV1.mqh"
 #include "GovernancePositionLifecycleTelemetryV1.mqh"
 
+#ifndef GOV_LINEAGE_ARCHIVE_MAX_V1
+   #define GOV_LINEAGE_ARCHIVE_MAX_V1   256
+#endif
+
 struct SGovLineageRegistryStoreV1
 {
    SGovLineageNodeV1       nodes[GOV_LINEAGE_MAX_NODES_V1];
@@ -18,6 +22,8 @@ struct SGovLineageRegistryStoreV1
    uint                    next_lineage_id;
    int                     ring_alloc;
    SGovLineageTelemetryV1  tel;
+   SGovLineageNodeV1       archive_nodes[GOV_LINEAGE_ARCHIVE_MAX_V1];
+   int                     archive_seq;
 };
 
 inline void GovLineageV1_Reset(SGovLineageRegistryStoreV1 &st)
@@ -37,6 +43,9 @@ inline void GovLineageV1_Reset(SGovLineageRegistryStoreV1 &st)
    }
    for(int m = 0; m < GOV_LINEAGE_MAX_MUTATIONS_V1; m++)
       GovLineageDsV1_InitMutation(st.mutations[m]);
+   st.archive_seq = 0;
+   for(int a = 0; a < GOV_LINEAGE_ARCHIVE_MAX_V1; a++)
+      GovLineageDsV1_InitNode(st.archive_nodes[a]);
 }
 
 inline int GovLineageV1_FindByPosition(const SGovLineageRegistryStoreV1 &st, const ulong position_id)
@@ -178,7 +187,11 @@ inline bool GovLineageV1_Close(SGovLineageRegistryStoreV1 &st, const ulong posit
    st.nodes[ix].lifecycle_phase = (int)GOV_LC_PHASE_CLOSED;
    st.nodes[ix].close_time = ts;
    st.nodes[ix].last_mutation_time = ts;
-   st.nodes[ix].active = 0;
+   const int aslot = (st.archive_seq % GOV_LINEAGE_ARCHIVE_MAX_V1);
+   st.archive_nodes[aslot] = st.nodes[ix];
+   st.archive_nodes[aslot].active = 2;
+   st.archive_seq = GovSaturatingAdd32(st.archive_seq, 1);
+   GovLineageDsV1_InitNode(st.nodes[ix]);
    return true;
 }
 

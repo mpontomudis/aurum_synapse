@@ -20,6 +20,9 @@ inline void GovRuntimeVisualExpV1_EnsureReportFolders(void)
    if(!FolderCreate("AurumSynapse\\TelemetryAnalytics\\Reports")) {
       /* non-fatal */
    }
+   if(!FolderCreate("AurumSynapse\\TelemetryAnalytics\\Baselines")) {
+      /* non-fatal */
+   }
 }
 
 inline bool GovRuntimeVisualExpV1_WriteUtf8Lf(const string rel_path, const string utf8_text)

@@ -13,6 +13,8 @@
 #include "../TelemetryAnalytics/GovernanceShadowRuntimeLaneV1.mqh"
 #include "../TelemetryAnalytics/GovernanceRuntimeStrategyTaggingV1/GovernanceRuntimeStrategyTaggingV1.mqh"
 
+SGovCmpRunRecordV1 g_gov_test_cmp_baseline_row_v1;
+
 #define GOV_V1_TMP_POLICY_TAB "__gov_kernel_policy_valid.tab"
 #define GOV_V1_TMP_TRANSCRIPT "__gov_kernel_transcript.bin"
 
@@ -4823,7 +4825,7 @@ bool GovTest_DossierMetadata(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX001", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX001", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "1. Metadata") < 0)
         return Fail("doss_meta");
     if(StringFind(html, "report_id") < 0)
@@ -4841,7 +4843,7 @@ bool GovTest_InputSnapshot(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX002", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX002", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "UNIT_KEY") < 0)
         return Fail("doss_inp");
     return true;
@@ -4855,7 +4857,7 @@ bool GovTest_StrategyBreakdown(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX003", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX003", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "6. Strategy breakdown") < 0)
         return Fail("doss_strat_sec");
     if(StringFind(html, "tblStrat") < 0)
@@ -4871,7 +4873,7 @@ bool GovTest_RegimeBreakdown(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX004", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX004", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "7. Regime breakdown") < 0)
         return Fail("doss_reg");
     if(StringFind(html, "TRENDING") < 0)
@@ -4883,13 +4885,14 @@ bool GovTest_LineageTree(void) {
     GovRunTagIntV1_ModuleInit();
     GovLineageV1_Reset(g_gov_lineage_reg_v1);
     GovLineageV1_RegisterRoot(g_gov_lineage_reg_v1, 992001UL, (int)GOV_STRAT_TF, TimeCurrent());
+    GovLineageV1_Close(g_gov_lineage_reg_v1, 992001UL, TimeCurrent());
     SGovStratAttribSummaryV1 sum;
     GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
     SGovVisualExecSummaryV1 ex;
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX005", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX005", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "10. Position lineage") < 0)
         return Fail("doss_lin_sec");
     if(StringFind(html, "ROOT_LINEAGE_") < 0)
@@ -4905,7 +4908,7 @@ bool GovTest_ToxicityAnalytics(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX006", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX006", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "11. Toxicity analytics") < 0)
         return Fail("doss_tox");
     if(StringFind(html, "11b. Toxicity radar") < 0)
@@ -4924,7 +4927,7 @@ bool GovTest_CapitalDiagnostics(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX007", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX007", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "12. Capital diagnostics") < 0)
         return Fail("doss_cap");
     return true;
@@ -4939,7 +4942,7 @@ bool GovTest_SurvivabilityMatrix(void) {
     ex.valid = 1;
     ex.balance_dd_rel_pct = 30.0;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX008", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX008", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "13. Survivability matrix") < 0)
         return Fail("doss_surv");
     return true;
@@ -4956,7 +4959,7 @@ bool GovTest_ComparativeInsights(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX009", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX009", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "IDENTICAL_PAYLOAD") < 0)
         return Fail("doss_cmp");
     g_gov_dossier_compare_baseline_kv_v1 = "";
@@ -4975,9 +4978,11 @@ bool GovTest_FailureDiagnostics(void) {
     ex.valid = 1;
     ex.balance_dd_rel_pct = 40.0;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX010", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX010", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "18. Failure diagnostics") < 0)
         return Fail("doss_fail");
+    if(StringFind(html, "failure_digest=") < 0)
+        return Fail("doss_fail_digest");
     return true;
 }
 
@@ -4991,7 +4996,7 @@ bool GovTest_RecoveryAnalysis(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX011", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX011", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "19. Recovery analysis") < 0)
         return Fail("doss_rec");
     return true;
@@ -5005,7 +5010,7 @@ bool GovTest_Recommendations(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string html = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX012", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX012", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "20. Recommendations") < 0)
         return Fail("doss_reco");
     return true;
@@ -5019,8 +5024,8 @@ bool GovTest_DeterministicExport(void) {
     GovRuntimeVisualDsV1_InitExec(ex);
     ex.valid = 1;
     string a = "", b = "";
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX013", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, a);
-    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX013", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, b);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX013", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, a);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX013", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, b);
     if(a != b)
         return Fail("doss_det");
     return true;
@@ -5104,6 +5109,7 @@ bool GovTest_RunTagExport(void) {
 }
 
 int OnInit() {
+    GovCmpDsV1_Init(g_gov_test_cmp_baseline_row_v1);
     if(!T_Evidence_FusionDeterminism())
         return INIT_FAILED;
     if(!T_Evidence_AttribPipeSchema())

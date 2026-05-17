@@ -33,6 +33,10 @@ inline bool GovRuntimeVisualIntV1_ExportGovernanceReportV1(const string sym,
    SGovVisualExecSummaryV1 ex;
    GovRuntimeVisualDsV1_FromTester(ex);
 
+   SGovCmpRunRecordV1 cmp_base;
+   GovCmpDsV1_Init(cmp_base);
+   GovCmpStoreV1_ReadLatest(cmp_base);
+
    MqlDateTime dm;
    TimeToStruct(TimeCurrent(), dm);
    const string ts = StringFormat("%04d%02d%02d_%02d%02d%02d", dm.year, dm.mon, dm.day, dm.hour, dm.min, dm.sec);
@@ -41,10 +45,14 @@ inline bool GovRuntimeVisualIntV1_ExportGovernanceReportV1(const string sym,
    const string rel_html = dir + base + GOV_VISUAL_HTML_EXT_V1;
 
    string html = "";
-   GovBacktestDossierV1_BuildFullHtml(sym, tf, ts, g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+   GovBacktestDossierV1_BuildFullHtml(sym, tf, ts, g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, cmp_base, html);
 
    if(!GovRuntimeVisualExpV1_WriteUtf8Lf(rel_html, html))
       return false;
+
+   SGovCmpRunRecordV1 cmp_cur;
+   GovCmpStoreV1_FillCurrent(ts, sym, tf, sum, ex, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, cmp_cur);
+   GovCmpStoreV1_Append(cmp_cur);
 
    g_gov_runtime_visual_last_html_path_v1 = rel_html;
 

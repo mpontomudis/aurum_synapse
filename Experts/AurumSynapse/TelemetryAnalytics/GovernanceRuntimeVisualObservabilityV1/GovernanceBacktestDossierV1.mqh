@@ -31,6 +31,7 @@
 #include "GovernanceBacktestFailureDiagnosticsV1.mqh"
 #include "GovernanceBacktestRecommendationsV1.mqh"
 #include "GovernanceBacktestComparativeInsightsV1.mqh"
+#include "../GovernancePositionLineageIntelligenceV1/GovernanceRecoveryChainAnalyticsV1.mqh"
 
 inline string GovBacktestDossierV1_RegimeDossierLabel(const int regime)
 {
@@ -177,8 +178,10 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
                                               const string report_ts,
                                               const SGovRuntimeTaggingModuleV1 &mod,
                                               const SGovLineageRegistryStoreV1 &lin,
+                                              const SGovRecoveryStoreV1 &rec,
                                               SGovStratAttribSummaryV1 &sum,
                                               const SGovVisualExecSummaryV1 &ex,
+                                              const SGovCmpRunRecordV1 &cmp_baseline,
                                               string &html)
 {
    html = "";
@@ -238,12 +241,14 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
 
    GovBacktestDossierV1_AppendGovernanceHashBlock(ex, sum, html);
    GovBacktestEnvSnapV1_AppendSection(sym, html);
-   GovBacktestCmpV1_AppendSection(g_gov_backtest_input_kv_v1, html);
-   GovBacktestFailV1_AppendSection(sum, ex, lin, html);
+   SGovCmpRunRecordV1 cmp_cur;
+   GovCmpStoreV1_FillCurrent(report_ts, sym, tf, sum, ex, lin, rec, cmp_cur);
+   GovBacktestCmpV1_AppendSection(g_gov_backtest_input_kv_v1, cmp_baseline, cmp_cur, html);
+   GovBacktestFailV1_AppendSection(sym, mod, rec, sum, ex, lin, html);
    GovBacktestRecoveryV1_AppendSection(lin, html);
    GovBacktestRecV1_AppendSection(sum, ex, html);
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</main><footer>PHASE_20B GovernanceBacktestDossierV1 — cold path — LF-only — embedded CSS/JS</footer>\n<script>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</main><footer>PHASE_20C GovernanceBacktestDossierV1 — cold path — LF-only — embedded CSS/JS</footer>\n<script>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, GovRuntimeVisualJsV1_Embedded());
    GovRuntimeVisualHtmlW1_AppendLf(html, "</script></body></html>\n");
 }

@@ -27,6 +27,7 @@
 #include "UI/InfoPanel.mqh"
 #include "UI/Logger.mqh"
 #include "Core/TradeDiag.mqh"
+#include "TelemetryAnalytics/GovernanceRuntimeStrategyTaggingV1/GovernanceRuntimeStrategyTaggingV1.mqh"
 #ifdef AURUM_TELEMETRY_T1
 #include "Telemetry/TelemetryCollector.mqh"
 #endif
@@ -109,6 +110,18 @@ input group "=== DIAGNOSTIC (H2 Jul–Dec) ==="
 input bool InpDiagH2JulDec = true;                        // Log state-change & rejects (Jul–Dec only)
 //--- Phase 3D research: observability vs execution (tester / lab only — default OFF)
 input bool InpInvestigationSignalObservability = false;   // If true: EvaluateAll even when RiskManager halts; NEVER opens/modifies trades while halted
+input bool InpGovRuntimeTagAppendComment = false;          // Append governance runtime tag to order comment (MT5-safe truncation)
+
+input group "=== GOVERNANCE RUNTIME OBSERVABILITY ==="
+input bool InpGovRuntimeObsJournal = true;                   // Print governance report to Journal on stop (OnDeinit / OnTester)
+input bool InpGovRuntimeObsFile = false;                     // Also write report to file (MQL5/Files relative path)
+input string InpGovRuntimeObsFilePath = "governance_runtime_obs.txt";
+input bool InpGovRuntimeObsOnTester = true;                   // Emit report from OnTester()
+
+input group "=== GOVERNANCE VISUAL HTML (PHASE 20A) ==="
+input bool InpGovVisualHtmlExport = true;                     // Write governance_report_*.html on stop (OnDeinit live / OnTester)
+input bool InpGovVisualSidecars = false;                      // Optional .css / .js / .json next to HTML
+input bool InpGovVisualHtmlOnTester = true;                   // Emit HTML from OnTester() when in Strategy Tester
 
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
@@ -296,6 +309,12 @@ int OnInit() {
         Logger::Deinit();
         return INIT_FAILED;
     }
+
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    GovRuntimeVisualIntV1_ModuleInit();
+    GovRuntimeObsIntV1_Configure(InpGovRuntimeObsJournal, InpGovRuntimeObsFile, InpGovRuntimeObsFilePath,
+                                 GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW);
     
     //--- Phase 3D: observability mode is tester-only (never on live charts)
     if(InpInvestigationSignalObservability && !MQLInfoInteger(MQL_TESTER)) {
@@ -441,6 +460,10 @@ void OnDeinit(const int reason) {
     EventKillTimer();
     TelemetryT2_Deinit();
 #endif
+    GovRuntimeObsIntV1_EmitEndOfRun(_Symbol, reason);
+    if(InpGovVisualHtmlExport && MQLInfoInteger(MQL_TESTER) == 0) {
+        GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, InpGovVisualSidecars);
+    }
     Print("!!!!! ONDEINIT CALLED - REASON: ", reason, " !!!!!");
     Logger::Info("========================================");
     Logger::Info("  AURUM SYNAPSE v2.0 - STOPPING");
@@ -663,7 +686,7 @@ void OnTick() {
                             Print("[TRADE] *** EXECUTING TRADE ***");
                         }
                         // GOV_RUNTIME_INJECTION_CANDIDATE — pre-order shadow snapshot hook (must never block native path).
-                        ExecuteTrade(consensus, marketState, qualityScore);
+                        ExecuteTrade(consensus, marketState, qualityScore, signals);
                     }
                 }
             }
@@ -724,6 +747,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
         return;
     if(HistoryDealGetInteger(trans.deal, DEAL_MAGIC) != (long)InpMagicNumber)
         return;
+    GovLineageLiveV1_OnTradeTransaction(trans, _Symbol, (long)InpMagicNumber);
     ENUM_DEAL_ENTRY entry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(trans.deal, DEAL_ENTRY);
     if(entry != DEAL_ENTRY_OUT)
         return;
@@ -731,6 +755,7 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                      + HistoryDealGetDouble(trans.deal, DEAL_SWAP)
                      + HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
     bool wasProfit = (profit > 0.0);
+    GovRunTagIntV1_OnTradeClose(_Symbol, (long)InpMagicNumber, trans.deal);
     g_riskManager.OnTradeClosed(wasProfit, profit);
 }
 
@@ -919,7 +944,7 @@ bool CanOpenNewPosition(ENUM_SIGNAL_REJECT_REASON &rejectOut) {
 //+------------------------------------------------------------------+
 //| Execute trade                                                    |
 //+------------------------------------------------------------------+
-void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualityScore) {
+void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualityScore, const SignalResult &gov_rtag_signals[]) {
     // GOV_RUNTIME_INJECTION_CANDIDATE — execution hot path: shadow must be append-only / non-blocking only.
     //--- Reentrancy guard: prevent nested trade execution (safety vs callback/event loops)
     static bool s_inExecuteTrade = false;
@@ -946,8 +971,18 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
         InpSLPoints
     );
     
+    double lotDiagRequestedEarly = -1.0;
+    if(InpLotMethod == LOT_FIXED)
+        lotDiagRequestedEarly = InpFixedLot;
+    else if(InpLotMethod == LOT_FIXED_PER_BALANCE)
+        lotDiagRequestedEarly = g_moneyManager.ComputeFixedPerBalanceLot(
+            AccountInfoDouble(ACCOUNT_BALANCE), InpBalanceStep, InpBaseLotPerStep);
+
     if(lot <= 0) {
         Logger::Error("Invalid lot size calculated: " + DoubleToString(lot, 2));
+        GovRuntimeObsV1_RefreshAccountSnapshot(_Symbol);
+        GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_LOT_INVALID,
+                                        (lotDiagRequestedEarly >= 0.0 ? lotDiagRequestedEarly : lot), lot, 0.0);
         TradeDiag_Blocked("InvalidLotCalculated", _Symbol, lot, g_tradeManager.CountOpenPositions());
         EXEC_TRADE_DONE();
         return;
@@ -1026,6 +1061,8 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
     if(signal == SIGNAL_BUY) {
         if(sl >= price || tp <= price) {
             Print("ERROR: Invalid SL/TP for BUY - SL: ", sl, " Price: ", price, " TP: ", tp);
+            GovRuntimeObsV1_RefreshAccountSnapshot(_Symbol);
+            GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_INVALID_STOPS, lot, lot, 0.0);
             TradeDiag_Blocked("InvalidStops", _Symbol, lot, g_tradeManager.CountOpenPositions());
             EXEC_TRADE_DONE();
             return;
@@ -1033,6 +1070,8 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
     } else {
         if(sl <= price || tp >= price) {
             Print("ERROR: Invalid SL/TP for SELL - SL: ", sl, " Price: ", price, " TP: ", tp);
+            GovRuntimeObsV1_RefreshAccountSnapshot(_Symbol);
+            GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_INVALID_STOPS, lot, lot, 0.0);
             TradeDiag_Blocked("InvalidStops", _Symbol, lot, g_tradeManager.CountOpenPositions());
             EXEC_TRADE_DONE();
             return;
@@ -1062,29 +1101,53 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
     const int execOpenCount = g_tradeManager.CountOpenPositions();
     if(OrderCalcMargin(otyAllowed, _Symbol, lot, price, marginReqAllowed))
         TradeDiag_Allowed(_Symbol, lot, marginReqAllowed, execOpenCount);
+
+    const double symMinVolDiag = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
+    if(symMinVolDiag > 0.0 && lot + 1e-12 < symMinVolDiag) {
+        GovRuntimeObsV1_RefreshAccountSnapshot(_Symbol);
+        double reqCap = lot;
+        if(lotDiagRequested >= 0.0)
+            reqCap = lotDiagRequested;
+        else if(lotDiagRequestedEarly >= 0.0)
+            reqCap = lotDiagRequestedEarly;
+        GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_LOT_COLLAPSE_MIN_VOLUME, reqCap, lot, marginReqAllowed);
+    }
+    
+    //--- Runtime governance tag — optional comment suffix only (execution math unchanged).
+    string order_comment = "AS2.0_Q" + IntegerToString((int)qualityScore);
+    const int prim_rtag = GovRunTagIntV1_SelectPrimaryStrategyIndex(signal, gov_rtag_signals);
+    const int idx_rtag = (prim_rtag < 0) ? (int)STRATEGY_MOMENTUM_SCALP : prim_rtag;
+    SGovRuntimeTradeIdentityV1 pre_id;
+    GovRunTagIntV1_BuildIdentityCore(idx_rtag, state.regime, state.session, state.atrRatio, 0, (datetime)TimeCurrent(), qualityScore, pre_id);
+    if(InpGovRuntimeTagAppendComment)
+        order_comment = GovRunTagIntV1_FormatOrderComment(order_comment, pre_id.tag, true);
     
     //--- Execute order
     ulong ticket = 0;
     
     if(signal == SIGNAL_BUY) {
-        ticket = g_tradeManager.OpenBuy(lot, sl, tp, (int)qualityScore, 
-                                        "AS2.0_Q" + IntegerToString((int)qualityScore),
-                                        lotDiagRequested);
+        ticket = g_tradeManager.OpenBuy(lot, sl, tp, (int)qualityScore, order_comment, lotDiagRequested);
     } else {
-        ticket = g_tradeManager.OpenSell(lot, sl, tp, (int)qualityScore,
-                                         "AS2.0_Q" + IntegerToString((int)qualityScore),
-                                         lotDiagRequested);
+        ticket = g_tradeManager.OpenSell(lot, sl, tp, (int)qualityScore, order_comment, lotDiagRequested);
     }
     
     //--- Handle result
     if(ticket > 0) {
         g_totalTrades++;
         g_riskManager.OnTradeOpened(lot);
+        GovRunTagIntV1_OnTradeOpen(_Symbol, ticket, signal, gov_rtag_signals, state.regime, state.session, state.atrRatio, qualityScore);
         
         Logger::LogTrade(ticket, "OPEN_" + EnumToString(signal), lot, price, sl, tp, (int)qualityScore);
         Logger::Info("Trade #" + IntegerToString(g_totalTrades) + " opened successfully");
     } else {
         Logger::Error("Trade execution failed");
+        GovRuntimeObsV1_RefreshAccountSnapshot(_Symbol);
+        double reqFail = lot;
+        if(lotDiagRequested >= 0.0)
+            reqFail = lotDiagRequested;
+        else if(lotDiagRequestedEarly >= 0.0)
+            reqFail = lotDiagRequestedEarly;
+        GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_ORDER_SEND_FAILED, reqFail, lot, marginReqAllowed);
     }
     
     EXEC_TRADE_DONE();
@@ -1197,6 +1260,17 @@ void Cleanup() {
     if(g_marketAnalyzer != NULL) { delete g_marketAnalyzer; g_marketAnalyzer = NULL; }
     
     g_initialized = false;
+}
+
+//+------------------------------------------------------------------+
+//| Strategy Tester hook — governance observability (cold path)      |
+//+------------------------------------------------------------------+
+double OnTester() {
+    if(InpGovRuntimeObsOnTester)
+        GovRuntimeObsIntV1_EmitEndOfRun(_Symbol, 0);
+    if(InpGovVisualHtmlExport && InpGovVisualHtmlOnTester)
+        GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, InpGovVisualSidecars);
+    return 0.0;
 }
 
 //+------------------------------------------------------------------+

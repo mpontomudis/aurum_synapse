@@ -11,6 +11,7 @@
 #include "../TelemetryAnalytics/GovernanceOrchestrationV1/GovernanceExecutionOrchestratorV1.mqh"
 #include "../TelemetryAnalytics/GovernanceReplayVisualIntelligenceV1/GovernanceReplayVisualIntelligenceV1.mqh"
 #include "../TelemetryAnalytics/GovernanceShadowRuntimeLaneV1.mqh"
+#include "../TelemetryAnalytics/GovernanceRuntimeStrategyTaggingV1/GovernanceRuntimeStrategyTaggingV1.mqh"
 
 #define GOV_V1_TMP_POLICY_TAB "__gov_kernel_policy_valid.tab"
 #define GOV_V1_TMP_TRANSCRIPT "__gov_kernel_transcript.bin"
@@ -4021,6 +4022,832 @@ bool T_SAttr_SessionFit(void) {
     return true;
 }
 
+//+------------------------------------------------------------------+
+//| GOVERNANCE_RUNTIME_STRATEGY_TAGGING_V1 — harness tests            |
+//+------------------------------------------------------------------+
+bool T_RTAG_StrategyClass(void) {
+    if(GovRunTagV1_ClassifyStrategy(0) != GOV_STRAT_TF)
+        return Fail("rtag_strat0");
+    if(GovRunTagV1_ClassifyStrategy(7) != GOV_STRAT_MS)
+        return Fail("rtag_strat7");
+    if(GovRunTagV1_ClassifyStrategy(999) != GOV_STRAT_MS)
+        return Fail("rtag_strat_sat");
+    return true;
+}
+
+bool T_RTAG_RegimeClass(void) {
+    if(GovRunTagV1_ClassifyRegime(REGIME_TRENDING) != GOV_REGIME_TREND)
+        return Fail("rtag_reg_tr");
+    if(GovRunTagV1_ClassifyRegime(REGIME_RANGING) != GOV_REGIME_CHOP)
+        return Fail("rtag_reg_rng");
+    if(GovRunTagV1_ClassifyRegime(REGIME_VOLATILE) != GOV_REGIME_EXPANSION)
+        return Fail("rtag_reg_vol");
+    if(GovRunTagV1_ClassifyRegime(REGIME_CALM) != GOV_REGIME_COMPRESSION)
+        return Fail("rtag_reg_calm");
+    return true;
+}
+
+bool T_RTAG_SessionClass(void) {
+    if(GovRunTagV1_ClassifySession(SESSION_ASIAN) != GOV_SATTR_SESS_ASIA)
+        return Fail("rtag_sess_as");
+    if(GovRunTagV1_ClassifySession(SESSION_NEWYORK) != GOV_SATTR_SESS_NY)
+        return Fail("rtag_sess_ny");
+    return true;
+}
+
+bool T_RTAG_VolClass(void) {
+    if(GovRunTagV1_ClassifyVolatility(0.5) != GOV_SATTR_VOL_LOW)
+        return Fail("rtag_vol_low");
+    if(GovRunTagV1_ClassifyVolatility(2.0) != GOV_SATTR_VOL_EXTREME)
+        return Fail("rtag_vol_xt");
+    return true;
+}
+
+bool T_RTAG_TagBuild(void) {
+    string t;
+    GovRunTagV1_Build(GOV_STRAT_TF, GOV_REGIME_TREND, GOV_SATTR_VOL_HIGH, GOV_SATTR_SESS_NY, t);
+    if(t != "TF|TREND|HIGHVOL|NY")
+        return Fail("rtag_tag_tf");
+    GovRunTagV1_Build(GOV_STRAT_MR, GOV_REGIME_CHOP, GOV_SATTR_VOL_LOW, GOV_SATTR_SESS_ASIA, t);
+    if(t != "MR|CHOP|LOWVOL|ASIA")
+        return Fail("rtag_tag_mr");
+    return true;
+}
+
+bool T_RTAG_Registry(void) {
+    SGovRunTagRegistryStoreV1 r;
+    GovRunTagRegV1_Init(r);
+    SGovRuntimeTradeIdentityV1 id;
+    GovRunTagDsV1_InitIdentity(id);
+    id.strategy_id = GOV_STRAT_BO;
+    id.regime_id = GOV_REGIME_TREND;
+    id.session_id = GOV_SATTR_SESS_NY;
+    id.volatility_id = GOV_SATTR_VOL_MED;
+    GovRunTagV1_Build(id.strategy_id, id.regime_id, id.volatility_id, id.session_id, id.tag);
+    int ovr = 0;
+    if(!GovRunTagRegV1_Insert(r, 1001, id, ovr))
+        return Fail("rtag_reg_ins");
+    SGovRuntimeTradeIdentityV1 out;
+    if(!GovRunTagRegV1_Find(r, 1001, out))
+        return Fail("rtag_reg_find");
+    if(out.strategy_id != GOV_STRAT_BO)
+        return Fail("rtag_reg_val");
+    if(!GovRunTagRegV1_Remove(r, 1001))
+        return Fail("rtag_reg_rm");
+    if(GovRunTagRegV1_Find(r, 1001, out))
+        return Fail("rtag_reg_stale");
+    return true;
+}
+
+bool T_RTAG_Bridge(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovRuntimeTradeIdentityV1 id;
+    GovRunTagDsV1_InitIdentity(id);
+    id.strategy_id = GOV_STRAT_MR;
+    id.regime_id = GOV_REGIME_CHOP;
+    id.session_id = GOV_SATTR_SESS_ASIA;
+    id.volatility_id = GOV_SATTR_VOL_LOW;
+    GovRunTagV1_Build(id.strategy_id, id.regime_id, id.volatility_id, id.session_id, id.tag);
+    string err = "";
+    if(!GovRunAttrV1_Register(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.tel, 5000, id, err))
+        return Fail("rtag_br_reg");
+    if(!GovRunAttrV1_Commit(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.bridge, g_gov_rtag_module_v1.tel, 5000, 100L, 1, 0, 0, err))
+        return Fail("rtag_br_commit");
+    if(g_gov_rtag_module_v1.tel.commits != 1)
+        return Fail("rtag_br_tel");
+    return true;
+}
+
+bool T_RTAG_Export(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovRuntimeTradeIdentityV1 ida, idb;
+    GovRunTagDsV1_InitIdentity(ida);
+    ida.strategy_id = GOV_STRAT_TF;
+    ida.regime_id = GOV_REGIME_TREND;
+    ida.session_id = GOV_SATTR_SESS_NY;
+    ida.volatility_id = GOV_SATTR_VOL_LOW;
+    GovRunTagV1_Build(ida.strategy_id, ida.regime_id, ida.volatility_id, ida.session_id, ida.tag);
+    GovRunTagDsV1_InitIdentity(idb);
+    idb.strategy_id = GOV_STRAT_BO;
+    idb.regime_id = GOV_REGIME_EXPANSION;
+    idb.session_id = GOV_SATTR_SESS_LONDON;
+    idb.volatility_id = GOV_SATTR_VOL_MED;
+    GovRunTagV1_Build(idb.strategy_id, idb.regime_id, idb.volatility_id, idb.session_id, idb.tag);
+    string err = "";
+    if(!GovRunAttrV1_Register(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.tel, 6001, ida, err))
+        return Fail("rtag_exp_reg_a");
+    if(!GovRunAttrV1_Commit(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.bridge, g_gov_rtag_module_v1.tel, 6001, 200L, 1, 0, 0, err))
+        return Fail("rtag_exp_com_a");
+    if(!GovRunAttrV1_Register(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.tel, 6002, idb, err))
+        return Fail("rtag_exp_reg_b");
+    if(!GovRunAttrV1_Commit(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.bridge, g_gov_rtag_module_v1.tel, 6002, -50L, 1, 0, 0, err))
+        return Fail("rtag_exp_com_b");
+    string dst = "";
+    if(!GovRunAttrV1_Export(g_gov_rtag_module_v1.bridge, dst))
+        return Fail("rtag_exp_call");
+    if(StringFind(dst, "===RUNTIME_STRATEGY_BREAKDOWN===") < 0)
+        return Fail("rtag_exp_blk_s");
+    if(StringFind(dst, "===RUNTIME_REGIME_BREAKDOWN===") < 0)
+        return Fail("rtag_exp_blk_r");
+    if(StringFind(dst, "TF") < 0)
+        return Fail("rtag_exp_tf");
+    return true;
+}
+
+bool T_RTAG_RuntimeSafe(void) {
+    string t;
+    GovRunTagV1_Build(GOV_STRAT_BO, GOV_REGIME_EXPANSION, GOV_SATTR_VOL_MED, GOV_SATTR_SESS_LONDON, t);
+    if(StringLen(t) > GOV_RTAG_TAG_MAX_LEN_V1)
+        return Fail("rtag_safe_len");
+    const string c = GovRunTagIntV1_FormatOrderComment("AS2.0_Q50", t, true);
+    if(StringLen(c) > 31)
+        return Fail("rtag_safe_cmt");
+    return true;
+}
+
+bool T_RTAG_ReplayDet(void) {
+    string err = "";
+    string e1 = "", e2 = "";
+    for(int pass = 0; pass < 2; pass++) {
+        GovRunTagIntV1_ModuleInit();
+        SGovRuntimeTradeIdentityV1 id;
+        GovRunTagDsV1_InitIdentity(id);
+        id.strategy_id = GOV_STRAT_TF;
+        id.regime_id = GOV_REGIME_TREND;
+        id.session_id = GOV_SATTR_SESS_NY;
+        id.volatility_id = GOV_SATTR_VOL_LOW;
+        GovRunTagV1_Build(id.strategy_id, id.regime_id, id.volatility_id, id.session_id, id.tag);
+        if(!GovRunAttrV1_Register(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.tel, 9001, id, err))
+            return Fail("rtag_rep_reg");
+        if(!GovRunAttrV1_Commit(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.bridge, g_gov_rtag_module_v1.tel, 9001, 123L, 2, 0, 0, err))
+            return Fail("rtag_rep_com");
+        string dst = "";
+        if(!GovRunAttrV1_Export(g_gov_rtag_module_v1.bridge, dst))
+            return Fail("rtag_rep_exp");
+        if(pass == 0)
+            e1 = dst;
+        else
+            e2 = dst;
+    }
+    if(e1 != e2)
+        return Fail("rtag_rep_det");
+    return true;
+}
+
+bool T_RTAG_NoMutation(void) {
+    SGovRuntimeTradeIdentityV1 id;
+    GovRunTagIntV1_BuildIdentityCore(2, REGIME_RANGING, SESSION_ASIAN, 0.9, 0, D'2020.01.01', 60.0, id);
+    const SGovRuntimeTradeIdentityV1 snap = id;
+    if(!GovRunTagDsV1_ValidateIdentity(id))
+        return Fail("rtag_nomut_v1");
+    if(!GovRunTagDsV1_ValidateIdentity(id))
+        return Fail("rtag_nomut_v2");
+    if(id.tag != snap.tag || id.strategy_id != snap.strategy_id || id.regime_id != snap.regime_id)
+        return Fail("rtag_nomut_chg");
+    return true;
+}
+
+//+------------------------------------------------------------------+
+//| GOVERNANCE_POSITION_LINEAGE_INTELLIGENCE_V1 — harness tests       |
+//+------------------------------------------------------------------+
+bool GovTest_LineageRoot(void) {
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    const int ix = GovLineageV1_RegisterRoot(st, 880001UL, 2, D'2024.06.01 10:00');
+    if(ix < 0)
+        return Fail("lin_root_ix");
+    if(st.nodes[ix].lineage_id != (uint)1 || st.nodes[ix].root_lineage_id != (uint)1)
+        return Fail("lin_root_lid");
+    if(st.nodes[ix].originating_strategy != 2 || st.nodes[ix].current_owner_strategy != 2)
+        return Fail("lin_root_own");
+    if(GovLineageV1_FindByPosition(st, 880001UL) != ix)
+        return Fail("lin_root_find");
+    if(st.tel.total_roots != 1)
+        return Fail("lin_root_tel");
+    return true;
+}
+
+bool GovTest_LineageChild(void) {
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    const int p = GovLineageV1_RegisterRoot(st, 880101UL, 1, D'2024.06.02');
+    if(p < 0)
+        return Fail("lin_ch_p");
+    if(!GovGeneV1_AttachChild(st, p, 880102UL, 3, D'2024.06.02 11:00', (uint)GOV_ANC_SCALE))
+        return Fail("lin_ch_att");
+    const int cix = GovLineageV1_FindByPosition(st, 880102UL);
+    if(cix < 0)
+        return Fail("lin_ch_find");
+    if(st.nodes[cix].parent_lineage_id != st.nodes[p].lineage_id)
+        return Fail("lin_ch_plid");
+    if(st.nodes[cix].parent_node_idx != p)
+        return Fail("lin_ch_pidx");
+    if(st.edge_count < 1)
+        return Fail("lin_ch_edge");
+    return true;
+}
+
+bool GovTest_LineageScaleIn(void) {
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    SGovLineageReplayRowV1 r[];
+    ArrayResize(r, 2);
+    r[0].position_id = 880201UL;
+    r[0].deal_entry = (int)DEAL_ENTRY_IN;
+    r[0].volume_milli = 100000L;
+    r[0].strategy_id = 1;
+    r[0].ts = D'2024.06.03';
+    r[1].position_id = 880201UL;
+    r[1].deal_entry = (int)DEAL_ENTRY_IN;
+    r[1].volume_milli = 250000L;
+    r[1].strategy_id = 1;
+    r[1].ts = D'2024.06.03 12:00';
+    string err = "";
+    if(!GovGeneV1_Reconstruct(st, r, 2, err))
+        return Fail("lin_si_reb");
+    const int ix = GovLineageV1_FindByPosition(st, 880201UL);
+    if(ix < 0)
+        return Fail("lin_si_ix");
+    if(st.nodes[ix].scale_in_count < 1)
+        return Fail("lin_si_cnt");
+    if(st.nodes[ix].position_volume_milli != 250000L)
+        return Fail("lin_si_vol");
+    return true;
+}
+
+bool GovTest_LineagePartialClose(void) {
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    SGovLineageReplayRowV1 r[];
+    ArrayResize(r, 3);
+    r[0].position_id = 880301UL;
+    r[0].deal_entry = (int)DEAL_ENTRY_IN;
+    r[0].volume_milli = 300000L;
+    r[0].strategy_id = 0;
+    r[0].ts = D'2024.06.04';
+    r[1].position_id = 880301UL;
+    r[1].deal_entry = (int)DEAL_ENTRY_OUT;
+    r[1].volume_milli = 120000L;
+    r[1].profit_cents = 50L;
+    r[1].deal_reason = 0;
+    r[1].ts = D'2024.06.04 13:00';
+    r[2].position_id = 880301UL;
+    r[2].deal_entry = (int)DEAL_ENTRY_OUT;
+    r[2].volume_milli = 0L;
+    r[2].profit_cents = 10L;
+    r[2].deal_reason = 0;
+    r[2].ts = D'2024.06.04 14:00';
+    string err = "";
+    if(!GovGeneV1_Reconstruct(st, r, 3, err))
+        return Fail("lin_pc_reb");
+    const int ix = GovLineageV1_FindByPosition(st, 880301UL);
+    if(ix >= 0)
+        return Fail("lin_pc_closed");
+    int pc = 0;
+    for(int m = 0; m < GOV_LINEAGE_MAX_MUTATIONS_V1; m++) {
+        if(st.mutations[m].mutation_type == (int)GOV_MUT_PARTIAL_CLOSE)
+            pc++;
+    }
+    if(pc < 1)
+        return Fail("lin_pc_mut");
+    return true;
+}
+
+bool GovTest_LineageRecovery(void) {
+    const int mt = GovMutationV1_Detect((int)DEAL_ENTRY_OUT, 100000L, 0L, -500L, 1, 0);
+    if(!GovMutationV1_IsRecovery(mt))
+        return Fail("lin_rec_mt");
+    SGovRecoveryStoreV1 rec;
+    GovRecoveryStoreV1_Init(rec);
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    GovRecoveryV1_Register(rec, (uint)7, (uint)99999, 3);
+    GovRecoveryV1_Analyze(rec, st);
+    if(st.tel.replay_mismatches < 1)
+        return Fail("lin_rec_an");
+    SGovLineageReplayRowV1 r[];
+    ArrayResize(r, 2);
+    r[0].position_id = 880401UL;
+    r[0].deal_entry = (int)DEAL_ENTRY_IN;
+    r[0].volume_milli = 100000L;
+    r[0].strategy_id = 2;
+    r[0].ts = D'2024.06.05';
+    r[1].position_id = 880401UL;
+    r[1].deal_entry = (int)DEAL_ENTRY_OUT;
+    r[1].volume_milli = 0L;
+    r[1].profit_cents = -200L;
+    r[1].deal_reason = (int)DEAL_REASON_SL;
+    r[1].ts = D'2024.06.05 15:00';
+    string err = "";
+    GovLineageV1_Reset(st);
+    if(!GovGeneV1_Reconstruct(st, r, 2, err))
+        return Fail("lin_rec_reb");
+    int rec_mut = 0;
+    for(int m = 0; m < GOV_LINEAGE_MAX_MUTATIONS_V1; m++) {
+        if(st.mutations[m].mutation_type == (int)GOV_MUT_RECOVERY)
+            rec_mut++;
+    }
+    if(rec_mut < 1)
+        return Fail("lin_rec_mut");
+    return true;
+}
+
+bool GovTest_LineageReplay(void) {
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    SGovLineageReplayRowV1 r[];
+    ArrayResize(r, 2);
+    r[0].position_id = 880501UL;
+    r[0].deal_entry = (int)DEAL_ENTRY_IN;
+    r[0].volume_milli = 50000L;
+    r[0].strategy_id = 4;
+    r[0].ts = D'2024.06.06';
+    r[1].position_id = 880501UL;
+    r[1].deal_entry = (int)DEAL_ENTRY_OUT;
+    r[1].volume_milli = 0L;
+    r[1].profit_cents = 25L;
+    r[1].deal_reason = 0;
+    r[1].ts = D'2024.06.06 16:00';
+    string err = "";
+    if(!GovReplayLineageV1_Rebuild(st, r, 2, err))
+        return Fail("lin_rp_reb");
+    if(StringLen(err) != 0)
+        return Fail("lin_rp_err");
+    if(GovLineageV1_FindByPosition(st, 880501UL) >= 0)
+        return Fail("lin_rp_open");
+    return true;
+}
+
+bool GovTest_LineageDeterminism(void) {
+    SGovLineageRegistryStoreV1 a, b;
+    GovLineageV1_Reset(a);
+    GovLineageV1_Reset(b);
+    SGovLineageReplayRowV1 r[];
+    ArrayResize(r, 3);
+    r[0].position_id = 880601UL;
+    r[0].strategy_id = 1;
+    r[0].ts = D'2024.06.07 10:00';
+    r[0].deal_reason = 0;
+    r[1].position_id = 880601UL;
+    r[1].strategy_id = 1;
+    r[1].ts = D'2024.06.07 11:00';
+    r[1].deal_reason = 0;
+    r[2].position_id = 880601UL;
+    r[2].strategy_id = 1;
+    r[2].ts = D'2024.06.07 12:00';
+    r[2].deal_reason = 0;
+    r[0].deal_entry = (int)DEAL_ENTRY_IN;
+    r[0].volume_milli = 80000L;
+    r[1].deal_entry = (int)DEAL_ENTRY_IN;
+    r[1].volume_milli = 160000L;
+    r[2].deal_entry = (int)DEAL_ENTRY_OUT;
+    r[2].volume_milli = 0L;
+    r[2].profit_cents = 1L;
+    string e1 = "", e2 = "";
+    if(!GovReplayLineageV1_Rebuild(a, r, 3, e1) || !GovReplayLineageV1_Rebuild(b, r, 3, e2))
+        return Fail("lin_det_reb");
+    if(!GovReplayLineageV1_Equals(a, b))
+        return Fail("lin_det_eq");
+    const ulong h1 = GovReplayLineageV1_Hash(a);
+    const ulong h2 = GovReplayLineageV1_Hash(b);
+    if(h1 != h2)
+        return Fail("lin_det_hash");
+    return true;
+}
+
+bool GovTest_LineageOverflow(void) {
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    for(int k = 0; k < GOV_LINEAGE_MAX_NODES_V1 + 8; k++) {
+        const ulong pid = (ulong)(900000 + k);
+        GovLineageV1_RegisterRoot(st, pid, k & 7, D'2024.06.08');
+    }
+    if(st.tel.overflow_events < 1)
+        return Fail("lin_ov_tel");
+    return true;
+}
+
+bool GovTest_LineageOwnership(void) {
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    const int ix = GovLineageV1_RegisterRoot(st, 880701UL, 0, D'2024.06.09');
+    GovGeneV1_UpdateOwnership(st, ix, 7, D'2024.06.09 18:00');
+    if(st.nodes[ix].current_owner_strategy != 7)
+        return Fail("lin_own_str");
+    GovGeneV1_UpdateLifecycle(st, ix, (int)GOV_LC_PHASE_RECOVERY, (int)GOV_LINEAGE_ST_RECOVERED, D'2024.06.09 19:00');
+    if(st.nodes[ix].lifecycle_phase != (int)GOV_LC_PHASE_RECOVERY)
+        return Fail("lin_own_lc");
+    return true;
+}
+
+bool GovTest_LineageToxicity(void) {
+    SGovRecoveryChainV1 c;
+    c.root_lineage_id = (uint)1;
+    c.last_lineage_id = (uint)2;
+    c.generation_depth = 4;
+    c.toxic_score_0_1000 = 600;
+    c.exposure_ratio_micro = 500000L;
+    if(!GovRecoveryV1_IsToxic(c))
+        return Fail("lin_tox_hi");
+    c.toxic_score_0_1000 = 100;
+    if(GovRecoveryV1_IsToxic(c))
+        return Fail("lin_tox_lo");
+    if(GovRecoveryV1_ChainDepth(c) != 4)
+        return Fail("lin_tox_dep");
+    if(GovRecoveryV1_ExposureRatio(c) != 500000L)
+        return Fail("lin_tox_exp");
+    return true;
+}
+
+bool GovTest_LineageMutation(void) {
+    if(GovMutationV1_Detect((int)DEAL_ENTRY_IN, 0L, 100L, 0, 0, 0) != (int)GOV_MUT_NEW_ENTRY)
+        return Fail("lin_mut_ne");
+    if(GovMutationV1_Detect((int)DEAL_ENTRY_IN, 100L, 200L, 0, 0, 0) != (int)GOV_MUT_SCALE_IN)
+        return Fail("lin_mut_si");
+    if(GovMutationV1_Detect((int)DEAL_ENTRY_INOUT, 0L, 0L, 0, 0, 0) != (int)GOV_MUT_REVERSAL)
+        return Fail("lin_mut_rev");
+    if(!GovMutationV1_IsScaleOut(GovMutationV1_Detect((int)DEAL_ENTRY_OUT, 100L, 0L, 0L, 0, 0)))
+        return Fail("lin_mut_so");
+    return true;
+}
+
+bool GovTest_LineageIsolation(void) {
+    SGovLineageRegistryStoreV1 src, dst;
+    GovLineageV1_Reset(src);
+    GovLineageV1_RegisterRoot(src, 880801UL, 5, D'2024.06.10');
+    GovLineageSbxV1_Clone(src, dst);
+    if(GovLineageV1_FindByPosition(dst, 880801UL) < 0)
+        return Fail("lin_iso_clone");
+    GovLineageSbxV1_Isolate(dst);
+    if(GovLineageV1_FindByPosition(dst, 880801UL) >= 0)
+        return Fail("lin_iso_clr");
+    if(GovLineageV1_FindByPosition(src, 880801UL) < 0)
+        return Fail("lin_iso_src");
+    return true;
+}
+
+bool GovTest_LineageComparator(void) {
+    SGovLineageRegistryStoreV1 st;
+    GovLineageV1_Reset(st);
+    GovLineageV1_RegisterRoot(st, 880901UL, 2, D'2024.06.11');
+    SGovLineageSnapshotV1 sa, sb;
+    GovLineageCmpV1_CaptureSnapshot(st, sa);
+    GovLineageCmpV1_CaptureSnapshot(st, sb);
+    if(!GovLineageCmpV1_Equals(sa, sb))
+        return Fail("lin_cmp_eq");
+    if(StringLen(GovLineageCmpV1_Report(sa, sb)) != 0)
+        return Fail("lin_cmp_rep");
+    return true;
+}
+
+bool T_LINEAGE_Root(void) {
+    return GovTest_LineageRoot();
+}
+bool T_LINEAGE_Child(void) {
+    return GovTest_LineageChild();
+}
+bool T_LINEAGE_ScaleIn(void) {
+    return GovTest_LineageScaleIn();
+}
+bool T_LINEAGE_PartialClose(void) {
+    return GovTest_LineagePartialClose();
+}
+bool T_LINEAGE_Recovery(void) {
+    return GovTest_LineageRecovery();
+}
+bool T_LINEAGE_Replay(void) {
+    return GovTest_LineageReplay();
+}
+bool T_LINEAGE_Determinism(void) {
+    return GovTest_LineageDeterminism();
+}
+bool T_LINEAGE_Overflow(void) {
+    return GovTest_LineageOverflow();
+}
+bool T_LINEAGE_Ownership(void) {
+    return GovTest_LineageOwnership();
+}
+bool T_LINEAGE_Toxicity(void) {
+    return GovTest_LineageToxicity();
+}
+bool T_LINEAGE_Mutation(void) {
+    return GovTest_LineageMutation();
+}
+bool T_LINEAGE_Isolation(void) {
+    return GovTest_LineageIsolation();
+}
+bool T_LINEAGE_Comparator(void) {
+    return GovTest_LineageComparator();
+}
+
+//+------------------------------------------------------------------+
+//| GOVERNANCE_RUNTIME_OBSERVABILITY_EXPORT_V1 — harness tests        |
+//+------------------------------------------------------------------+
+bool GovTest_RuntimeObsExport(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    GovRuntimeObsIntV1_Configure(false, false, "", GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW);
+    string dst = "";
+    if(!GovRuntimeObsBldV1_BuildFull(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW, dst))
+        return Fail("robs_bld");
+    if(StringFind(dst, "=== GOVERNANCE_RUNTIME_OBSERVABILITY_V1 ===") < 0)
+        return Fail("robs_hdr");
+    if(StringFind(dst, "=== STRATEGY BREAKDOWN ===") < 0)
+        return Fail("robs_strat");
+    if(StringFind(dst, "=== CAPITAL DIAGNOSTICS ===") < 0)
+        return Fail("robs_cap");
+    return true;
+}
+
+bool GovTest_RuntimeObsJournal(void) {
+    GovRuntimeObsIntV1_ModuleInit();
+    GovRuntimeObsTelV1_Init(g_gov_runtime_obs_tel_v1);
+    const int j0 = g_gov_runtime_obs_tel_v1.journal_chunks;
+    GovRuntimeObsJournalV1_Print("=== RUNTIME_OBS_JOURNAL_SMOKE ===\n");
+    if(g_gov_runtime_obs_tel_v1.journal_chunks <= j0)
+        return Fail("robs_journal_tel");
+    return true;
+}
+
+bool GovTest_RuntimeObsFile(void) {
+    const string p = "__gov_runtime_obs_smoke.txt";
+    if(!GovRuntimeObsFileV1_WriteUtf8Lf(p, "=== RUNTIME_OBS_FILE_SMOKE ===\n"))
+        return Fail("robs_file_wr");
+    if(!FileIsExist(p))
+        return Fail("robs_file_ex");
+    return true;
+}
+
+bool GovTest_RuntimeObsDeterminism(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    GovRuntimeObsIntV1_Configure(false, false, "", GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW);
+    string a = "", b = "";
+    if(!GovRuntimeObsBldV1_BuildFull(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW, a))
+        return Fail("robs_det_a");
+    if(!GovRuntimeObsBldV1_BuildFull(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW, b))
+        return Fail("robs_det_b");
+    if(!GovRuntimeObsReplayV1_Equals(a, b))
+        return Fail("robs_det_eq");
+    return true;
+}
+
+bool GovTest_RuntimeObsCapitalCollapse(void) {
+    GovRuntimeObsIntV1_ModuleInit();
+    GovRuntimeObsV1_RefreshAccountSnapshot(Symbol());
+    GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_LOT_COLLAPSE_MIN_VOLUME, 0.0031, 0.0, 412.0);
+    string dst = "";
+    GovRunTagIntV1_ModuleInit();
+    if(!GovRuntimeObsBldV1_BuildFull(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW, dst))
+        return Fail("robs_cap_bld");
+    if(StringFind(dst, "LOT_COLLAPSE_MIN_VOLUME") < 0)
+        return Fail("robs_cap_lbl");
+    return true;
+}
+
+bool GovTest_RuntimeObsLineageExport(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    string dst = "";
+    if(!GovRuntimeObsBldV1_BuildFull(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW, dst))
+        return Fail("robs_lin_bld");
+    if(StringFind(dst, "===POSITION_LINEAGE===") < 0)
+        return Fail("robs_lin_raw");
+    return true;
+}
+
+bool GovTest_RuntimeObsReplayHash(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    string s = "";
+    if(!GovRuntimeObsBldV1_BuildFull(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW, s))
+        return Fail("robs_hash_bld");
+    if(StringLen(s) < 32)
+        return Fail("robs_hash_short");
+    const ulong h1 = GovRuntimeObsReplayV1_Hash64(s);
+    const ulong h2 = GovRuntimeObsReplayV1_Hash64(s + " ");
+    if(h1 == h2)
+        return Fail("robs_hash_same");
+    return true;
+}
+
+bool GovTest_RuntimeObsNoMutation(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    SGovRuntimeTradeIdentityV1 id;
+    GovRunTagDsV1_InitIdentity(id);
+    id.strategy_id = GOV_STRAT_BO;
+    id.regime_id = GOV_REGIME_TREND;
+    id.session_id = GOV_SATTR_SESS_NY;
+    id.volatility_id = GOV_SATTR_VOL_MED;
+    GovRunTagV1_Build(id.strategy_id, id.regime_id, id.volatility_id, id.session_id, id.tag);
+    string err = "";
+    if(!GovRunAttrV1_Register(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.tel, 424242UL, id, err))
+        return Fail("robs_nm_reg");
+    const int t0 = g_gov_rtag_module_v1.bridge.total;
+    string blob = "";
+    if(!GovRuntimeObsBldV1_BuildFull(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW, blob))
+        return Fail("robs_nm_bld");
+    if(g_gov_rtag_module_v1.bridge.total != t0)
+        return Fail("robs_nm_mut");
+    return true;
+}
+
+bool T_RUNTIME_OBS_Export(void) {
+    return GovTest_RuntimeObsExport();
+}
+bool T_RUNTIME_OBS_Journal(void) {
+    return GovTest_RuntimeObsJournal();
+}
+bool T_RUNTIME_OBS_File(void) {
+    return GovTest_RuntimeObsFile();
+}
+bool T_RUNTIME_OBS_Determinism(void) {
+    return GovTest_RuntimeObsDeterminism();
+}
+bool T_RUNTIME_OBS_CapitalCollapse(void) {
+    return GovTest_RuntimeObsCapitalCollapse();
+}
+bool T_RUNTIME_OBS_LineageExport(void) {
+    return GovTest_RuntimeObsLineageExport();
+}
+bool T_RUNTIME_OBS_ReplayHash(void) {
+    return GovTest_RuntimeObsReplayHash();
+}
+bool T_RUNTIME_OBS_NoMutation(void) {
+    return GovTest_RuntimeObsNoMutation();
+}
+
+//+------------------------------------------------------------------+
+//| GOVERNANCE_RUNTIME_VISUAL_OBSERVABILITY_V1 — harness tests       |
+//+------------------------------------------------------------------+
+bool GovTest_VisualExport(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeVisualIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovRuntimeVisualDashV1_BuildHtml(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "<!DOCTYPE html>") < 0)
+        return Fail("vis_html_doctype");
+    if(StringFind(html, "9. Governance Replay Hash") < 0)
+        return Fail("vis_replay_sec");
+    if(StringFind(html, "tblStrat") < 0)
+        return Fail("vis_strat_tbl");
+    return true;
+}
+
+bool GovTest_VisualDeterminism(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string a = "", b = "";
+    GovRuntimeVisualDashV1_BuildHtml("XAUUSD", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, a);
+    GovRuntimeVisualDashV1_BuildHtml("XAUUSD", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, b);
+    if(a != b)
+        return Fail("vis_det_neq");
+    return true;
+}
+
+bool GovTest_VisualLineageGraph(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovLineageV1_Reset(g_gov_lineage_reg_v1);
+    GovLineageV1_RegisterRoot(g_gov_lineage_reg_v1, 991001UL, (int)GOV_STRAT_MR, TimeCurrent());
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovRuntimeVisualDashV1_BuildHtml(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "ROOT_LINEAGE_") < 0)
+        return Fail("vis_lin_root");
+    return true;
+}
+
+bool GovTest_VisualStrategyBreakdown(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovRuntimeVisualDashV1_BuildHtml(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "TrendFollowing") < 0)
+        return Fail("vis_strat_tf");
+    return true;
+}
+
+bool GovTest_VisualCapitalDiagnostics(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    GovRuntimeObsV1_RefreshAccountSnapshot(Symbol());
+    GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_LOT_COLLAPSE_MIN_VOLUME, 0.0031, 0.0, 412.0);
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovRuntimeVisualDashV1_BuildHtml(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "RequestedLot") < 0)
+        return Fail("vis_cap_req");
+    if(StringFind(html, "0.0031") < 0)
+        return Fail("vis_cap_lot");
+    return true;
+}
+
+bool GovTest_VisualSurvivability(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    ex.balance_dd_rel_pct = 25.0;
+    string html = "";
+    GovRuntimeVisualDashV1_BuildHtml(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "Survivability Matrix") < 0)
+        return Fail("vis_surv_hdr");
+    if(StringFind(html, "$200") < 0)
+        return Fail("vis_surv_row");
+    return true;
+}
+
+bool GovTest_VisualReplayHash(void) {
+    const ulong d = GovRuntimeObsReplayV1_Hash64("GOV_VISUAL_REPLAY_VECTOR_V1");
+    const ulong f = GovRuntimeVisualReplayV1_Hash64Alt("GOV_VISUAL_REPLAY_VECTOR_V1");
+    if(d == f)
+        return Fail("vis_hash_collision");
+    return true;
+}
+
+bool T_VISUAL_Export(void) {
+    return GovTest_VisualExport();
+}
+bool T_VISUAL_Determinism(void) {
+    return GovTest_VisualDeterminism();
+}
+bool T_VISUAL_LineageGraph(void) {
+    return GovTest_VisualLineageGraph();
+}
+bool T_VISUAL_StrategyBreakdown(void) {
+    return GovTest_VisualStrategyBreakdown();
+}
+bool T_VISUAL_CapitalDiagnostics(void) {
+    return GovTest_VisualCapitalDiagnostics();
+}
+bool T_VISUAL_Survivability(void) {
+    return GovTest_VisualSurvivability();
+}
+bool T_VISUAL_ReplayHash(void) {
+    return GovTest_VisualReplayHash();
+}
+
+bool GovTest_RunTagIdentity(void) {
+    return T_RTAG_StrategyClass() && T_RTAG_RegimeClass() && T_RTAG_SessionClass() && T_RTAG_VolClass() && T_RTAG_TagBuild();
+}
+
+bool GovTest_RunTagRegistry(void) {
+    return T_RTAG_Registry();
+}
+
+bool GovTest_RunTagBridge(void) {
+    return T_RTAG_Bridge();
+}
+
+bool GovTest_RunTagTelemetry(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovRuntimeTradeIdentityV1 id;
+    GovRunTagDsV1_InitIdentity(id);
+    id.strategy_id = GOV_STRAT_TF;
+    id.regime_id = GOV_REGIME_TREND;
+    id.session_id = GOV_SATTR_SESS_NY;
+    id.volatility_id = GOV_SATTR_VOL_MED;
+    GovRunTagV1_Build(id.strategy_id, id.regime_id, id.volatility_id, id.session_id, id.tag);
+    string err = "";
+    if(!GovRunAttrV1_Register(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.tel, 7777, id, err))
+        return Fail("rtag_tel_reg");
+    if(!GovRunAttrV1_Commit(g_gov_rtag_module_v1.reg, g_gov_rtag_module_v1.bridge, g_gov_rtag_module_v1.tel, 7777, 50L, 1, 0, 0, err))
+        return Fail("rtag_tel_com");
+    if(g_gov_rtag_module_v1.tel.trades_by_strategy[GOV_STRAT_TF] != 1)
+        return Fail("rtag_tel_strat");
+    if(g_gov_rtag_module_v1.tel.commits != 1)
+        return Fail("rtag_tel_commits");
+    return true;
+}
+
+bool GovTest_RunTagExport(void) {
+    return T_RTAG_Export();
+}
+
 int OnInit() {
     if(!T_Evidence_FusionDeterminism())
         return INIT_FAILED;
@@ -4441,6 +5268,78 @@ int OnInit() {
     if(!T_SAttr_VolFit())
         return INIT_FAILED;
     if(!T_SAttr_SessionFit())
+        return INIT_FAILED;
+    if(!GovTest_RunTagIdentity())
+        return INIT_FAILED;
+    if(!GovTest_RunTagRegistry())
+        return INIT_FAILED;
+    if(!GovTest_RunTagBridge())
+        return INIT_FAILED;
+    if(!GovTest_RunTagTelemetry())
+        return INIT_FAILED;
+    if(!GovTest_RunTagExport())
+        return INIT_FAILED;
+    if(!T_RTAG_RuntimeSafe())
+        return INIT_FAILED;
+    if(!T_RTAG_ReplayDet())
+        return INIT_FAILED;
+    if(!T_RTAG_NoMutation())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Root())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Child())
+        return INIT_FAILED;
+    if(!T_LINEAGE_ScaleIn())
+        return INIT_FAILED;
+    if(!T_LINEAGE_PartialClose())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Recovery())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Replay())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Determinism())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Overflow())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Ownership())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Toxicity())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Mutation())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Isolation())
+        return INIT_FAILED;
+    if(!T_LINEAGE_Comparator())
+        return INIT_FAILED;
+    if(!T_RUNTIME_OBS_Export())
+        return INIT_FAILED;
+    if(!T_RUNTIME_OBS_Journal())
+        return INIT_FAILED;
+    if(!T_RUNTIME_OBS_File())
+        return INIT_FAILED;
+    if(!T_RUNTIME_OBS_Determinism())
+        return INIT_FAILED;
+    if(!T_RUNTIME_OBS_CapitalCollapse())
+        return INIT_FAILED;
+    if(!T_RUNTIME_OBS_LineageExport())
+        return INIT_FAILED;
+    if(!T_RUNTIME_OBS_ReplayHash())
+        return INIT_FAILED;
+    if(!T_RUNTIME_OBS_NoMutation())
+        return INIT_FAILED;
+    if(!T_VISUAL_Export())
+        return INIT_FAILED;
+    if(!T_VISUAL_Determinism())
+        return INIT_FAILED;
+    if(!T_VISUAL_LineageGraph())
+        return INIT_FAILED;
+    if(!T_VISUAL_StrategyBreakdown())
+        return INIT_FAILED;
+    if(!T_VISUAL_CapitalDiagnostics())
+        return INIT_FAILED;
+    if(!T_VISUAL_Survivability())
+        return INIT_FAILED;
+    if(!T_VISUAL_ReplayHash())
         return INIT_FAILED;
     if(!GovTestHarnessV1_ReplayLoopShell(6))
         return INIT_FAILED;

@@ -3,6 +3,7 @@
 
 **Version:** 2.0  
 **Status:** Phase 1 complete — **Phase 2** — **§2.4 Require sweep ✅** (`2.4.A`–`2.4.D` logged); **FY net-max lock** still **`2.2.D`** (Q**60**, all Require **false**) — **P0:** **§3.8** **MomentumScalp** **Aug–Dec** silence + **`2.4.C`** Inputs verify *(**§3.1 TrendFollowing** **VERIFIED CORE** — **§3.9** **462**-row lock **`InpMaxSpreadPoints = 50`** + **Phase 3D** contamination **rejected** — see **§Test 3.1** + **PHASE 3D**)* — **CHECKPOINT 3.10** **COMPLETE** (**May 11, 2026**): **V1 production lock** **TF+BO**; **`SupplyDemand`** **ensemble-offender** → **Phase 5** forensic (**PHASE 4A** triple capture **superseded** by pairwise matrix — **see CHECKPOINT 3.10**); **Phase 4** **rollup** **May 11, 2026**: **4.1** **INCONCLUSIVE** · **4.2** **PASS behavioral** · **4.3** **PASS behavioral** **post-fix** · **4.4** **PASS** — **PARTIAL** — **see** **PHASE 4** **checklist**; **Phase 5** — **CHECKPOINT 5.1 — TF+BO Q-sweep** (**Q55/Q60/Q65**) **logged** (**Q60** **optimum** — **see** **Phase 5** **below** **Phase 5A**); **CHECKPOINT 3.12** **session** **forensics** (**S4/S5**) **logged**; **CHECKPOINT 3.13** **Trade execution diagnostics** (`Core/TradeDiag.mqh`, **`[TRADE_BLOCKED]`** / **`[TRADE_ALLOWED]`**) **shipped** — see **ENGINEERING LOCK §D**; **GATE-0** **§ SAFE DEVELOPMENT FOUNDATION** (pre–**STEP 1A** telemetry) **documented**; **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** spec: passive **`AS_TELEMETRY_V1`**, T0–T3) **documented**  
+**Governance checkpoint:** **2026-05-10** — **PHASE 20** baseline (`PHASE_20_STABLE_RUNTIME_BASELINE`) — see **`# PHASE 20 COMPLETE — GOVERNANCE_CONSCIOUSNESS_INTELLIGENCE_V1`**.  
 **Last Updated:** May 11, 2026 — **Lot sizing / execution engineering** (**`LOT_SIZE_MAX_BASE`** cap scope, **`LOT_FIXED_PER_BALANCE`** + **`InpBalanceStep`** / **`InpBaseLotPerStep`**, **`ENUM_LOT_METHOD`** order + **preset migration** — see **ENGINEERING LOCK — Lot sizing & execution**); **CHECKPOINT 3.12** **Session Regime Continuity Forensics** (**TF+BO**, **Q65**, **TEST S4/S5** **WIT** **windows**) **logged**; **CHECKPOINT 4C** **weekday** **hardening** **forensics** **(W1–W3**, **TF+BO**, **Asia** **00→07** **WIT**, **Q65**); **CHECKPOINT 5.1 — TF+BO Quality Sensitivity Sweep** (**Q55/Q60/Q65**); **Phase 4.3** consec **post-fix**; **4.1** daily loss Mar **2025**; **4.4** position limit; **4.2** equity DD; **CHECKPOINT 3.10** complete; **§Test 3.1** spread lock; **§3.1** **462** / **§3.2** **398** / **§3.4** **479**; **§ ENGINEERING LOCK §E** — **FPB vs low trade count** **operational audit** (external **TF+BO** lab: time filter **ON**, **$500** deposit, step **500** / **0.01** — **~20** positions, **session/weekday** concentration — **rank `Reason=`** before blaming FPB formula); **§ SAFE DEVELOPMENT FOUNDATION** (**GATE-0** — backup / rollback / stable core); **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** — passive **`AS_TELEMETRY_V1`**, T0–T3, non-interference contract — before regime engine)
 
 **Addendum (2026-05-10 — telemetry-roadmap Phase 3B, join validation):** **GOLDEN FIXTURE SUITE V1 COMPLETE (2026-05-10)** — `Case_001_BasicJoin` through **`Case_010_TimezoneEdge_StaticOffset`** **PASS** deterministically (`Tests/TestTelemetryJoinValidation.mq5`); golden fixtures + **byte-identical** regression; backward-only **`MAX(bar_utc ≤ d_time_utc)`**; **`ORPHAN_DEAL`**; duplicate-candidate / duplicate-ticket / gap / future-leak guards; partial-close + position rollup annotations + multi-context attribution + UTC edge / static-offset **metadata** policy frozen in **`TelemetryAnalytics/PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`** (**§A1–A10**). **Milestone tag:** `PHASE_3B_GOLDEN_FIXTURE_SUITE_COMPLETE`.
@@ -11,7 +12,9 @@
 
 **Telemetry intelligence (rollup + analytics + causal):** **`POSITION_ROLLUP_V1`**, **`SURVIVABILITY_ANALYTICS_V1`**, **`TOXICITY_ANALYTICS_V1`**, **`CAUSAL_VALIDATION_LAYER_V1`** — **COMPLETE** (deterministic harnesses; see **TELEMETRY INTELLIGENCE MILESTONES** below). **Tag:** `PHASE_7_CAUSAL_VALIDATION_LAYER_COMPLETE`.
 
-**Next (planned):** **`GOVERNANCE & ADAPTIVE INTELLIGENCE`** — adaptive risk governor, strategy degradation memory, toxic regime quarantine, execution survivability governor, confidence throttling, adaptive lifecycle governance, **`AS_JOINED_V2`** architecture, regime intelligence layer (**explicit spec** before implementation; **no** change to Golden Suite V1 regression law, **`expected_joined.csv`**, or **`AS_JOINED_V1`** unless separately chartered).
+**Governance intelligence program (PHASES 8–20):** — **COMPLETE** (architecture + modules under `Experts/AurumSynapse/TelemetryAnalytics/Governance*`; deterministic harness **`Tests/TestGovernanceStateMachineV1.mq5`**; replay umbrella **`GovernanceReplayVisualIntelligenceV1.mqh`**; production join path append-only **`GOV_EXEC_V1`** via **`ProductionGovernanceOrchestrationJoinHookV1`**). **Checkpoint commit message:** `PHASE_20_GOVERNANCE_CONSCIOUSNESS_COMPLETE`. **Rollback tag:** `PHASE_20_STABLE_RUNTIME_BASELINE`.
+
+**Next (post–PHASE 20 baseline):** focus shifts from feature expansion to **stability / survivability / orchestration / runtime validation** — see **NEXT MAJOR MILESTONE** inside **`# PHASE 20 COMPLETE — GOVERNANCE_CONSCIOUSNESS_INTELLIGENCE_V1`** below. Adaptive **`AS_JOINED_V2`** / regime governor items remain **charter-gated** (**no** change to Golden Suite V1 regression law, **`expected_joined.csv`**, or **`AS_JOINED_V1`** unless separately chartered).
 
 ### TELEMETRY INTELLIGENCE MILESTONES (PHASES 4–7) — **COMPLETE**
 
@@ -46,15 +49,78 @@
 - Deterministic diagnostic fingerprint complete — harness **`Tests/TestCausalValidationLayerV1.mq5`**
 - **Annotated tag:** `PHASE_7_CAUSAL_VALIDATION_LAYER_COMPLETE`
 
-#### NEXT — GOVERNANCE & ADAPTIVE INTELLIGENCE — **NOT STARTED**
-- Adaptive risk governor
-- Strategy degradation memory
-- Toxic regime quarantine
-- Execution survivability governor
-- Confidence throttling
-- Adaptive lifecycle governance
-- **AS_JOINED_V2** architecture
-- Regime intelligence layer
+# PHASE 20 COMPLETE — GOVERNANCE_CONSCIOUSNESS_INTELLIGENCE_V1
+
+**Official status (roadmap):** **PHASE 1–20 — implementation baseline COMPLETE** (trading validation phases **1–6** + telemetry intelligence **4–7** as numbered earlier in this document + governance program **8–20** as frozen below).
+
+**Compile baseline (governance harness):** `Tests/TestGovernanceStateMachineV1.mq5` — **0 errors**, **0 warnings** (re-verify after each MT5 / `#property` toolchain bump).
+
+**Tester baseline:** single Strategy Tester run of **`TestGovernanceStateMachineV1`** — Journal line **`[GOV_SM_V1_TEST] STATUS=PASS suite=governance_kernel_v1`** (deterministic suite gate).
+
+**Runtime governance intelligence chain (baseline scope):** the full analytic / replay / integration chain is **active** in the governance harness and replay UTF-8 pipelines — **replay**, **incident**, **meta**, **research**, **simulation**, **resilience**, **evolution**, **strategic**, **civilization**, **temporal**, **ecology**, **consciousness** — plus **shadow tick**, **evidence integration**, **execution orchestration**, and **`GOV_EXEC_V1`** append on **production join** batches (see `TelemetryAnalytics/ProductionJoinEngine.mqh`). *This checkpoint documents architecture freeze; it does not by itself wire the full chain into `AurumSynapse.mq5` OnTick (reserved for **NEXT MAJOR MILESTONE** work).*
+
+### Governance program — PHASE 8–14 (COMPLETE)
+
+| Phase | Track | Status |
+|------:|--------|--------|
+| **PHASE 8** | Governance kernel / state machine / policy — `GovernanceStateMachineV1`, specs `PHASE_8*` | **COMPLETE** |
+| **PHASE 9** | Evidence integration — `GovernanceEvidenceIntegrationV1` | **COMPLETE** |
+| **PHASE 10** | Replay intelligence (dataset, parser, integrity, timeline, export) — `GovernanceReplayVisualIntelligenceV1` core | **COMPLETE** |
+| **PHASE 11** | Incident intelligence — `GovernanceIncidentIntelligenceV1` | **COMPLETE** |
+| **PHASE 12** | Meta analytics — `GovernanceMetaAnalyticsV1` | **COMPLETE** |
+| **PHASE 13** | Autonomous research — `GovernanceAutonomousResearchV1` | **COMPLETE** |
+| **PHASE 14** | Simulation lab — `GovernanceSimulationLabV1` | **COMPLETE** |
+
+### Governance program — late intelligence phases (COMPLETE)
+
+- **PHASE 15** — **RESILIENCE_INTELLIGENCE_V1** — `[COMPLETE]`
+- **PHASE 16** — **EVOLUTION_INTELLIGENCE_V1** — `[COMPLETE]`
+- **PHASE 17** — **STRATEGIC_INTELLIGENCE_V1** — `[COMPLETE]`
+- **PHASE 18** — **CIVILIZATION_INTELLIGENCE_V1** — `[COMPLETE]`
+- **PHASE 19** — **TEMPORAL_INTELLIGENCE_V1** — `[COMPLETE]`
+- **PHASE 20** — **CONSCIOUSNESS_INTELLIGENCE_V1** — `[COMPLETE]`
+
+**Sibling layer (umbrella order, same baseline):** **ECOLOGY_INTELLIGENCE_V1** (`GovernanceEcologyIntelligenceV1`) — `[COMPLETE]` (loaded before consciousness in `GovernanceReplayVisualIntelligenceV1.mqh`; not renumbered to avoid collision with roadmap **PHASE 5** — survivability analytics — elsewhere in this file).
+
+### NEXT MAJOR MILESTONE
+
+**MASSIVE BACKTEST ORCHESTRATION**  
+**SHADOW RUNTIME VALIDATION**  
+**VISUALIZATION LAYER**  
+**DEMO OBSERVATION RUNTIME**
+
+**Sub-goals**
+
+- Governance survivability validation  
+- Multi-regime robustness  
+- Telemetry replay verification  
+- Runtime orchestration validation  
+- Governance visualization dashboard  
+- Shadow execution observation  
+- Collapse prevention verification  
+- Ecosystem stability verification  
+
+**IMPORTANT**
+
+Current focus is **no longer feature expansion**. Current focus is:
+
+- **stability**  
+- **survivability**  
+- **orchestration**  
+- **runtime validation**  
+- **deterministic replay verification**  
+- **governance ecosystem robustness**  
+
+#### Adaptive / AS_JOINED_V2 backlog (still charter-gated — NOT part of PHASE 20 “complete” scope above)
+
+- Adaptive risk governor (live EA coupling TBD)  
+- Strategy degradation memory  
+- Toxic regime quarantine  
+- Execution survivability governor (beyond harness / join hook)  
+- Confidence throttling  
+- Adaptive lifecycle governance  
+- **`AS_JOINED_V2`** architecture  
+- Regime intelligence layer  
 
 ---
 

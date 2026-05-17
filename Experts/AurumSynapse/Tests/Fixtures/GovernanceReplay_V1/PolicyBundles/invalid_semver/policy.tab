@@ -1,0 +1,3 @@
+policy_id=GOV_POLICY_BAD_SEMVER
+policy_semver=1.x.0
+policy_checksum_sha256=2e784c383ac0230aec27acff28af5b9cd0555d8e5b69b34f28f8db299b74c7dc

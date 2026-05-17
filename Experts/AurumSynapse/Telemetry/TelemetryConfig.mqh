@@ -6,7 +6,7 @@
 #ifndef __AURUM_TELEMETRY_CONFIG_MQH__
 #define __AURUM_TELEMETRY_CONFIG_MQH__
 
-//--- T2 requires T1: MQL5 has no #error — fail compile via missing include if misconfigured.
+//--- T2 requires T1: MQL5 has no compile-time error directive; fail compile via missing include if misconfigured.
 #ifdef AURUM_TELEMETRY_T2
 #ifndef AURUM_TELEMETRY_T1
 #include <__AURUM_TELEMETRY_T2_REQUIRES_AURUM_TELEMETRY_T1__.mqh>

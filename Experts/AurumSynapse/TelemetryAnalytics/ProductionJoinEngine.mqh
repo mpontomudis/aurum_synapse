@@ -10,6 +10,7 @@
 #include "TelemetryIndex.mqh"
 #include "JoinedDatasetWriter.mqh"
 #include "JoinStatistics.mqh"
+#include "GovernanceOrchestrationV1/ProductionGovernanceOrchestrationJoinHookV1.mqh"
 
 #define PRODUCTION_JOIN_ENGINE_ID   "PROD-JOIN-ORCH-0.2"
 
@@ -222,6 +223,8 @@ bool ProductionJoin_Run(const string telemetryRelPathFromCommon,
     string dealsUtf8 = "";
     if(!JoinValidation_ReadUtf8FileLf(dealsRelPathFromCommon, dealsUtf8))
         return false;
+
+    ProductionGovernanceOrchestrationJoinHookV1_OnJoinedBatch(outputRelPathFromCommon, dealsUtf8);
 
     const string joinerBuild = ProductionJoin_JoinerBuildForCase(caseId);
 

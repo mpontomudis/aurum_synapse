@@ -1,0 +1,48 @@
+AURUM SYNAPSE — CANONICAL policy.tab V1 (normative for GovernancePolicyLoaderV1)
+================================================================================
+Encoding: UTF-8 (no BOM preferred). Newlines: LF (U+000A) only in canonical files.
+
+LINE GRAMMAR
+------------
+After trimming leading/trailing ASCII HT (U+0009) and SP (U+0020):
+  - Empty line → ignored.
+  - First non-ws char '#' → comment, line ignored.
+  - Otherwise exactly one unescaped '=' separates KEY and VALUE.
+    KEY  : regex [a-z0-9_]+ (lowercase ASCII only).
+    VALUE: outer ASCII trim only; MUST NOT contain CR, LF, or '|'.
+
+KEY WHITELIST (V1 kernel)
+-------------------------
+policy_id
+policy_semver
+policy_checksum_sha256
+
+All other keys → GOV_LOAD_ERR_V1_UNSUPPORTED_KEY (fail-closed).
+
+REQUIRED KEYS
+-------------
+All three whitelist keys MUST be present exactly once (no duplicates).
+
+CHECKSUM SEMANTICS (policy PHASE_8 §9.1 alignment)
+--------------------------------------------------
+Let K be the multiset of key=value pairs read from the file (after grammar checks),
+excluding the pair whose key is policy_checksum_sha256.
+
+Canonical UTF-8 byte string C:
+  Sort pairs by ascending KEY (strcmp / codepoint order; identical to ASCII order here).
+  Emit for each pair in order:  KEY + '=' + VALUE + '\n'   (ASCII LF only).
+
+policy_checksum_sha256 VALUE must equal lowercase hex(SHA-256(C)) using MQL5 CryptEncode
+CRYPT_HASH_SHA256 over the raw UTF-8 bytes of C.
+
+The checksum line itself is never included in C.
+
+DUPLICATE KEYS
+--------------
+If the same KEY appears twice after trim → GOV_LOAD_ERR_V1_DUPLICATE_KEY.
+
+NO PARTIAL LOADS
+-----------------
+Any error → GovPolicyLoaderV1_ResetSnapshot(); load_ok=false; snapshot cleared.
+
+END CANONICAL_POLICY_TAB_V1

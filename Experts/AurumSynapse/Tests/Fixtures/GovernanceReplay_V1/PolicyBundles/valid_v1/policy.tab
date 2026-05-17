@@ -1,0 +1,4 @@
+gov_defaults_phase8_embedded=1
+policy_id=GOV_POLICY_TEST_VALID_V1
+policy_semver=1.0.0
+policy_checksum_sha256=f7167fe77747293a4856d6bd3ede23f8520cfb42d986420cc54ef6f352336e97

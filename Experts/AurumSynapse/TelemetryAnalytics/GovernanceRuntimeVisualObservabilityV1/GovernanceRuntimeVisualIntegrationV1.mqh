@@ -18,6 +18,7 @@ inline void GovRuntimeVisualIntV1_ModuleInit(void)
    GovRuntimeVisualTelV1_Init(g_gov_runtime_visual_tel_v1);
    g_gov_runtime_visual_last_html_path_v1 = "";
    GovBacktestInpSnapV1_Reset();
+   GovBacktestRuntimeV1_OnModuleInit(g_gov_visual_runtime_v1);
 }
 
 inline bool GovRuntimeVisualIntV1_ExportGovernanceReportV1(const string sym,

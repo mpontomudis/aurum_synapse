@@ -9,6 +9,16 @@
 #include "GovernanceRuntimeVisualContractsV1.mqh"
 #include "GovernanceRuntimeVisualDatasetV1.mqh"
 #include "GovernanceRuntimeVisualHtmlWriterV1.mqh"
+#include "GovernanceRuntimeVisualTelemetryV1.mqh"
+#include "GovernanceBacktestEnvironmentSnapshotV1.mqh"
+
+inline string GovFmtV1_Duration(const uint sec)
+{
+   const int h = (int)(sec / 3600u);
+   const int m = (int)((sec % 3600u) / 60u);
+   const int s = (int)(sec % 60u);
+   return StringFormat("%02dh %02dm %02ds", h, m, s);
+}
 
 struct SGovBacktestTradeStatsV1
 {
@@ -82,7 +92,8 @@ inline void GovBacktestMetaV1_AppendSection(const string report_id,
    const int bars = (MQLInfoInteger(MQL_TESTER) != 0) ? iBars(sym, tf) : 0;
    const int psec = (int)PeriodSeconds(tf);
    const long span_est = (long)bars * (long)psec;
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-meta\"><h2>1. Metadata</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s2\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">02</span> Backtest metadata</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-lede\">Reproducibility lattice: identifiers, tester span, and execution envelope for institutional attestation.</p>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<table class=\"doss-meta\"><tbody>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>report_id</td><td class=\"mono\">" + GovRuntimeVisualHtmlW1_Escape(report_id) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>timestamp</td><td class=\"mono\">" + GovRuntimeVisualHtmlW1_Escape(report_ts) + "</td></tr>\n");
@@ -100,7 +111,25 @@ inline void GovBacktestMetaV1_AppendSection(const string report_id,
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>account_balance</td><td>" + DoubleToString(AccountInfoDouble(ACCOUNT_BALANCE), 2) + " " +
                                          AccountInfoString(ACCOUNT_CURRENCY) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>bars_series</td><td>" + IntegerToString(bars) + "</td></tr>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>estimated_series_seconds</td><td>" + IntegerToString((int)span_est) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>bars_processed</td><td>" + IntegerToString(bars) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>dataset_coverage_seconds_est</td><td>" + IntegerToString((int)span_est) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>backtest_started_utc</td><td class=\"mono\">" +
+                                         ((g_gov_visual_runtime_v1.started_at > 0) ? GovRuntimeVisualHtmlW1_Escape(TimeToString(g_gov_visual_runtime_v1.started_at, TIME_DATE | TIME_SECONDS)) : "N_A") + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>backtest_finished_utc</td><td class=\"mono\">" +
+                                         ((g_gov_visual_runtime_v1.finished_at > 0) ? GovRuntimeVisualHtmlW1_Escape(TimeToString(g_gov_visual_runtime_v1.finished_at, TIME_DATE | TIME_SECONDS)) : "N_A") + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>runtime_duration_seconds</td><td>" + IntegerToString((int)g_gov_visual_runtime_v1.runtime_seconds) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>runtime_duration_hms</td><td class=\"mono\">" + GovRuntimeVisualHtmlW1_Escape(GovFmtV1_Duration(g_gov_visual_runtime_v1.runtime_seconds)) + "</td></tr>\n");
+   if(ts.valid != 0) {
+      const double ini_dep = TesterStatistics(STAT_INITIAL_DEPOSIT);
+      const double fin_bal = AccountInfoDouble(ACCOUNT_BALANCE);
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>initial_balance_tester</td><td>" + DoubleToString(ini_dep, 2) + "</td></tr>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>final_balance_account</td><td>" + DoubleToString(fin_bal, 2) + "</td></tr>\n");
+   }
+   if(MQLInfoInteger(MQL_TESTER) != 0) {
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>modeling_quality_descriptor</td><td>" + GovRuntimeVisualHtmlW1_Escape(GovBacktestMetaV1_ModelingStr()) + " · strategy_tester</td></tr>\n");
+   } else {
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>modeling_quality_descriptor</td><td>" + GovRuntimeVisualHtmlW1_Escape(GovBacktestMetaV1_ModelingStr()) + "</td></tr>\n");
+   }
    if(ts.valid != 0) {
       GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>tester_expectancy</td><td>" + DoubleToString(ts.expectancy, 4) + "</td></tr>\n");
       GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>tester_sharpe</td><td>" + DoubleToString(ts.sharpe, 4) + "</td></tr>\n");
@@ -109,12 +138,15 @@ inline void GovBacktestMetaV1_AppendSection(const string report_id,
       GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>tester_equity_min</td><td>" + DoubleToString(ts.eq_min, 2) + "</td></tr>\n");
       GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>tester_equity_max</td><td>" + DoubleToString(ts.eq_max, 2) + "</td></tr>\n");
    }
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<h3 class=\"gov-h3\">Execution envelope · environment metadata</h3>\n<table class=\"doss-meta\"><tbody>\n");
+   GovBacktestEnvSnapV1_AppendTableRows(sym, html);
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
 }
 
-inline void GovBacktestMetaV1_AppendTradeStatistics(const SGovVisualExecSummaryV1 &ex, const SGovBacktestTradeStatsV1 &ts, string &html)
+inline void GovBacktestMetaV1_AppendTradeStatisticsPanel(const SGovVisualExecSummaryV1 &ex, const SGovBacktestTradeStatsV1 &ts, string &html)
 {
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-tstats\"><h2>5. Trade statistics</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<h3 class=\"gov-h3\">Ledger & distribution</h3>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<table><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Total trades</td><td>" + IntegerToString(ex.total_trades) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Long trades</td><td>" + IntegerToString(ex.long_trades) + "</td></tr>\n");
@@ -135,7 +167,6 @@ inline void GovBacktestMetaV1_AppendTradeStatistics(const SGovVisualExecSummaryV
                                          DoubleToString(ts.eq_min, 2) + " → " + DoubleToString(ts.eq_max, 2) + "</span></div>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"card\"><b>Balance span (min→high)</b><span>" +
                                          DoubleToString(ts.bal_min, 2) + " → " + DoubleToString(ts.bal_max, 2) + "</span></div></div>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
 }
 
 #endif // __AURUM_GOV_BACKTEST_META_V1_MQH__

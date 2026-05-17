@@ -21,9 +21,9 @@
 #include "GovernanceRuntimeVisualDashboardBuilderV1.mqh"
 #include "GovernanceRuntimeVisualReplayV1.mqh"
 #include "../GovernanceRuntimeObservabilityExportV1/GovernanceRuntimeObservabilityReplayV1.mqh"
+#include "GovernanceRuntimeVisualTelemetryV1.mqh"
 #include "GovernanceBacktestMetadataV1.mqh"
 #include "GovernanceBacktestInputSnapshotV1.mqh"
-#include "GovernanceBacktestEnvironmentSnapshotV1.mqh"
 #include "GovernanceBacktestCapitalDiagnosticsV1.mqh"
 #include "GovernanceBacktestSurvivabilityV1.mqh"
 #include "GovernanceBacktestReplayTimelineV1.mqh"
@@ -31,6 +31,7 @@
 #include "GovernanceBacktestFailureDiagnosticsV1.mqh"
 #include "GovernanceBacktestRecommendationsV1.mqh"
 #include "GovernanceBacktestComparativeInsightsV1.mqh"
+#include "GovernanceIntelligenceDossierPresentationV1.mqh"
 #include "../GovernancePositionLineageIntelligenceV1/GovernanceRecoveryChainAnalyticsV1.mqh"
 
 inline string GovBacktestDossierV1_RegimeDossierLabel(const int regime)
@@ -49,7 +50,8 @@ inline void GovBacktestDossierV1_AppendStrategyActivation(const SGovStratAttribS
 {
    for(int z = 0; z < GOV_SATTR_STRAT_COUNT_V1; z++)
       GovStratToxV1_Score(z, tmp, tmp.tox[z]);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-sact\"><h2>3. Strategy activation</h2>\n<table><thead><tr><th>Strategy</th><th>Input gate</th><th>Trades</th><th>Net¢</th><th>Tox</th><th>Ecology role</th></tr></thead><tbody>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"intel-s3-sact\"><h3 class=\"gov-h3\">Strategy activation matrix</h3>\n<table id=\"tblSact\" data-sort-col=\"-1\" data-sort-dir=\"asc\"><thead><tr>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<th onclick=\"govSort('tblSact',0)\">Strategy</th><th onclick=\"govSort('tblSact',1)\">Input gate</th><th onclick=\"govSort('tblSact',2)\">Trades</th><th onclick=\"govSort('tblSact',3)\">Net¢</th><th onclick=\"govSort('tblSact',4)\">Tox</th><th onclick=\"govSort('tblSact',5)\">Ecology role</th></tr></thead><tbody>\n");
    for(int i = 0; i < GOV_SATTR_STRAT_COUNT_V1; i++) {
       const SGovStratAttribStatsV1 st = sum.bd.by_strat[i];
       const long net = st.gross_win_cents - st.gross_loss_cents;
@@ -67,12 +69,12 @@ inline void GovBacktestDossierV1_AppendStrategyActivation(const SGovStratAttribS
                                          IntegerToString((int)net) + "</td><td>" + IntegerToString(tmp.tox[i].score_0_1000) + "</td><td>" +
                                          GovRuntimeVisualHtmlW1_Escape(role) + "</td></tr>\n");
    }
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></div>\n");
 }
 
 inline void GovBacktestDossierV1_AppendRiskConfiguration(string &html)
 {
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-risk\"><h2>4. Risk configuration</h2>\n<div class=\"grid\">\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"intel-s3-risk\"><h3 class=\"gov-h3\">Risk governance</h3>\n<div class=\"grid\">\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"card\"><b>Max risk / trade %</b><span>" + DoubleToString(g_gov_dossier_risk_v1.max_risk_per_trade, 2) + "</span></div>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"card\"><b>Max daily loss %</b><span>" + DoubleToString(g_gov_dossier_risk_v1.max_daily_loss_pct, 2) + "</span></div>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"card\"><b>Max equity DD %</b><span>" + DoubleToString(g_gov_dossier_risk_v1.max_equity_dd_pct, 2) + "</span></div>\n");
@@ -81,15 +83,19 @@ inline void GovBacktestDossierV1_AppendRiskConfiguration(string &html)
    GovRuntimeVisualHtmlW1_AppendLf(html, "</div>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"grid\" style=\"margin-top:12px;\"><div class=\"card\"><b>DD threshold (tester)</b><div class=\"barwrap\"><div class=\"bar\" style=\"width:40%\"></div></div></div>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"card\"><b>Margin stress (placeholder)</b><div class=\"barwrap\"><div class=\"bar\" style=\"width:25%\"></div></div></div></div>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</div>\n");
 }
 
-inline void GovBacktestDossierV1_AppendRegimeDossierTable(const SGovStratAttribSummaryV1 &sum, SGovStratAttribSummaryV1 &tmp, string &html)
+inline void GovBacktestDossierV1_AppendRegimeVolIntelSection(const SGovStratAttribSummaryV1 &sum, SGovStratAttribSummaryV1 &tmp, string &html)
 {
    for(int z = 0; z < GOV_SATTR_STRAT_COUNT_V1; z++)
       GovStratToxV1_Score(z, tmp, tmp.tox[z]);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-regd\"><h2>7. Regime breakdown</h2>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<table><thead><tr><th>Regime</th><th>Trades</th><th>Net¢</th><th>PF</th><th>Avg tox</th><th>Collapse density</th></tr></thead><tbody>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s8\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">08</span> Market regime intelligence</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-lede\">Regime survivability, collapse density, and cross-strategy compatibility. Volatility buckets extend the lattice into expansion/compression stress.</p>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<h3 class=\"gov-h3\">Regime performance & survivability</h3>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<table id=\"tblRegime\" data-sort-col=\"-1\" data-sort-dir=\"asc\"><thead><tr>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<th onclick=\"govSort('tblRegime',0)\">Regime</th><th onclick=\"govSort('tblRegime',1)\">Trades</th><th onclick=\"govSort('tblRegime',2)\">Net¢</th><th onclick=\"govSort('tblRegime',3)\">PF</th><th onclick=\"govSort('tblRegime',4)\">Avg tox</th><th onclick=\"govSort('tblRegime',5)\">Collapse density</th>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tr></thead><tbody>\n");
    for(int r = 0; r < GOV_SATTR_REGIME_COUNT_V1; r++) {
       const SGovStratAttribStatsV1 st = sum.bd.regime.by_reg[r];
       const long net = st.gross_win_cents - st.gross_loss_cents;
@@ -107,26 +113,10 @@ inline void GovBacktestDossierV1_AppendRegimeDossierTable(const SGovStratAttribS
                                          IntegerToString((int)net) + "</td><td>" + DoubleToString((double)st.pf_milli / 1000.0, 3) + "</td><td>" + IntegerToString(avgx) + "</td><td>" +
                                          IntegerToString(cd) + "</td></tr>\n");
    }
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
-}
-
-inline void GovBacktestDossierV1_AppendSessionTable(const SGovStratAttribSummaryV1 &sum, string &html)
-{
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-sess\"><h2>8. Session breakdown</h2>\n<table id=\"tblSess\" data-sort-col=\"-1\" data-sort-dir=\"asc\"><thead><tr>");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<th onclick=\"govSort('tblSess',0)\">Session</th><th onclick=\"govSort('tblSess',1)\">Trades</th><th onclick=\"govSort('tblSess',2)\">Net¢</th><th onclick=\"govSort('tblSess',3)\">PF</th>");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</tr></thead><tbody>\n");
-   for(int s = 0; s < GOV_SATTR_SESSION_COUNT_V1; s++) {
-      const SGovStratAttribStatsV1 st = sum.bd.session.by_sess[s];
-      const long net = st.gross_win_cents - st.gross_loss_cents;
-      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>" + GovRuntimeVisualHtmlW1_Escape(GovStratTagV1_SessionCode(s)) + "</td><td>" + IntegerToString(st.trades) + "</td><td>" +
-                                         IntegerToString((int)net) + "</td><td>" + DoubleToString((double)st.pf_milli / 1000.0, 3) + "</td></tr>\n");
-   }
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
-}
-
-inline void GovBacktestDossierV1_AppendVolTable(const SGovStratAttribSummaryV1 &sum, string &html)
-{
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-vol\"><h2>9. Volatility breakdown</h2>\n<table id=\"tblVol\" data-sort-col=\"-1\" data-sort-dir=\"asc\"><thead><tr>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
+   GovIntelDossierV1_AppendRegimeCompatMatrix(sum, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<h3 class=\"gov-h3\">Volatility bucket intelligence</h3>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<table id=\"tblVol\" data-sort-col=\"-1\" data-sort-dir=\"asc\"><thead><tr>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<th onclick=\"govSort('tblVol',0)\">Bucket</th><th onclick=\"govSort('tblVol',1)\">Trades</th><th onclick=\"govSort('tblVol',2)\">Net¢</th><th onclick=\"govSort('tblVol',3)\">PF</th><th onclick=\"govSort('tblVol',4)\">Stopouts</th>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tr></thead><tbody>\n");
    for(int v = 0; v < GOV_SATTR_VOL_COUNT_V1; v++) {
@@ -139,17 +129,53 @@ inline void GovBacktestDossierV1_AppendVolTable(const SGovStratAttribSummaryV1 &
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
 }
 
-inline void GovBacktestDossierV1_AppendToxicityRadar(const SGovStratAttribSummaryV1 &sum, SGovStratAttribSummaryV1 &tmp, string &html)
+inline void GovBacktestDossierV1_AppendSessionIntelTable(SGovStratAttribSummaryV1 &sum, string &html)
+{
+   for(int z = 0; z < GOV_SATTR_STRAT_COUNT_V1; z++)
+      GovStratToxV1_Score(z, sum, sum.tox[z]);
+   int total_tr = 0;
+   for(int t = 0; t < GOV_SATTR_STRAT_COUNT_V1; t++)
+      total_tr += sum.bd.by_strat[t].trades;
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s9\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">09</span> Session intelligence</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-lede\">Session plane exposes liquidity windows, DD contribution, and execution stress. Sort columns to isolate toxic or unstable sessions.</p>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<table id=\"tblSess\" data-sort-col=\"-1\" data-sort-dir=\"asc\"><thead><tr>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<th onclick=\"govSort('tblSess',0)\">Session</th><th onclick=\"govSort('tblSess',1)\">Trades</th><th onclick=\"govSort('tblSess',2)\">Net¢</th><th onclick=\"govSort('tblSess',3)\">PF</th>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<th onclick=\"govSort('tblSess',4)\">Max DD contrib¢</th><th onclick=\"govSort('tblSess',5)\">Stopouts</th><th onclick=\"govSort('tblSess',6)\">Tail losses</th><th onclick=\"govSort('tblSess',7)\">Tox proxy</th><th onclick=\"govSort('tblSess',8)\">Density</th>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tr></thead><tbody>\n");
+   for(int s = 0; s < GOV_SATTR_SESSION_COUNT_V1; s++) {
+      const SGovStratAttribStatsV1 st = sum.bd.session.by_sess[s];
+      const long net = st.gross_win_cents - st.gross_loss_cents;
+      int tox_w = 0;
+      int tw = 0;
+      for(int k = 0; k < GOV_SATTR_STRAT_COUNT_V1; k++) {
+         if(sum.bd.by_strat[k].trades <= 0)
+            continue;
+         tox_w = GovSaturatingAdd32(tox_w, sum.tox[k].score_0_1000);
+         tw++;
+      }
+      const int avgt = (tw > 0) ? (tox_w / tw) : 0;
+      const int dens = (st.trades > 0 && total_tr > 0) ? (int)(1000L * (long)st.trades / (long)total_tr) : 0;
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>" + GovRuntimeVisualHtmlW1_Escape(GovStratTagV1_SessionCode(s)) + "</td><td>" + IntegerToString(st.trades) + "</td><td>" +
+                                         IntegerToString((int)net) + "</td><td>" + DoubleToString((double)st.pf_milli / 1000.0, 3) + "</td><td>" + IntegerToString(st.max_dd_contrib_cents) + "</td><td>" +
+                                         IntegerToString(st.stopout_count) + "</td><td>" + IntegerToString(st.tail_loss_count) + "</td><td>" + IntegerToString(avgt) + "</td><td>" + IntegerToString(dens) + "</td></tr>\n");
+   }
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-note\">Toxicity proxy uses ecology-wide mean (session-stratification reserved for future bridge hooks).</p></section>\n");
+}
+
+inline void GovBacktestDossierV1_AppendToxicityRadarPanel(const SGovStratAttribSummaryV1 &sum, SGovStratAttribSummaryV1 &tmp, string &html)
 {
    for(int z = 0; z < GOV_SATTR_STRAT_COUNT_V1; z++)
       GovStratToxV1_Score(z, tmp, tmp.tox[z]);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-toxrad\"><h2>11b. Toxicity radar (tabular)</h2>\n<table><thead><tr><th>Strategy</th><th>Score</th><th>Regime mismatch</th><th>Vol tox</th><th>Stopout‰</th></tr></thead><tbody>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<h3 class=\"gov-h3\">Toxicity radar (tabular decomposition)</h3>\n<table id=\"tblToxRad\" data-sort-col=\"-1\" data-sort-dir=\"asc\"><thead><tr>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<th onclick=\"govSort('tblToxRad',0)\">Strategy</th><th onclick=\"govSort('tblToxRad',1)\">Score</th><th onclick=\"govSort('tblToxRad',2)\">Regime mismatch</th><th onclick=\"govSort('tblToxRad',3)\">Vol tox</th><th onclick=\"govSort('tblToxRad',4)\">Stopout‰</th>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tr></thead><tbody>\n");
    for(int i = 0; i < GOV_SATTR_STRAT_COUNT_V1; i++) {
       const SGovStratAttribToxicityV1 t = tmp.tox[i];
       GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>" + GovRuntimeVisualHtmlW1_Escape(GovStratExpV1_StratLabel(i)) + "</td><td>" + IntegerToString(t.score_0_1000) + "</td><td>" +
                                          IntegerToString(t.regime_mismatch) + "</td><td>" + IntegerToString(t.vol_toxicity) + "</td><td>" + IntegerToString(t.stopout_rate_x1000) + "</td></tr>\n");
    }
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
 }
 
 inline void GovBacktestDossierV1_AppendGovernanceHashBlock(const SGovVisualExecSummaryV1 &ex, const SGovStratAttribSummaryV1 &sum, string &html)
@@ -162,7 +188,7 @@ inline void GovBacktestDossierV1_AppendGovernanceHashBlock(const SGovVisualExecS
       tel += "|" + IntegerToString(sum.bd.by_strat[u].trades);
    const ulong h_telemetry = GovRuntimeObsReplayV1_Hash64(tel);
    const string replay_ok = (StringLen(snap) > 200) ? "PAYLOAD_OK" : "PAYLOAD_SHORT";
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-ghash\"><h2>15. Governance hash</h2><table><tbody>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-attest\" class=\"gov-intel-sec gov-attest\"><h2><span class=\"gov-sec-num\">—</span> Attestation & replay integrity</h2><table><tbody>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>replay_hash</td><td>" + IntegerToString((long)h_replay) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>export_hash</td><td>" + IntegerToString((long)h_export) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>telemetry_hash</td><td>" + IntegerToString((long)h_telemetry) + "</td></tr>\n");
@@ -185,6 +211,7 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
                                               string &html)
 {
    html = "";
+   GovBacktestRuntimeV1_MarkFinished(g_gov_visual_runtime_v1);
    SGovStratAttribSummaryV1 tmp = sum;
    for(int z = 0; z < GOV_SATTR_STRAT_COUNT_V1; z++)
       GovStratToxV1_Score(z, sum, sum.tox[z]);
@@ -195,60 +222,82 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    const string report_id = GOV_VISUAL_REPORT_PREFIX_V1 + report_ts;
 
    GovRuntimeVisualHtmlW1_AppendLf(html, "<!DOCTYPE html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"/>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<title>Aurum Synapse — Governance Backtest Dossier</title>\n<style>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<title>Aurum Synapse — Governance Intelligence Dossier</title>\n<style>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, GovRuntimeVisualCssV1_Embedded());
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</style></head><body>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<header><h1>Governance Backtest Dossier — " + GovRuntimeVisualHtmlW1_Escape(sym) + " " +
-                                         GovRuntimeVisualHtmlW1_Escape(GovBacktestMetaV1_PeriodStr(tf)) + "</h1>");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<div style=\"font-size:0.8rem;color:#8b949e;margin-top:6px;\">schema=" + IntegerToString((int)GOV_DOSSIER_SCHEMA_VER_V1) +
-                                         " | ABI=" + IntegerToString((int)GOV_VISUAL_ABI_VER_V1) + "</div></header>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</style></head><body class=\"gov-dossier\">\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<header class=\"gov-header\"><div class=\"gov-header-inner\"><p class=\"gov-kicker\">Aurum Synapse · Autonomous governance telemetry</p>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<h1>Governance intelligence dossier</h1>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-header-sub\">" + GovRuntimeVisualHtmlW1_Escape(sym) + " · " + GovRuntimeVisualHtmlW1_Escape(GovBacktestMetaV1_PeriodStr(tf)) + " · schema " +
+                                         IntegerToString((int)GOV_DOSSIER_SCHEMA_VER_V1) + " · ABI " + IntegerToString((int)GOV_VISUAL_ABI_VER_V1) + "</p></div></header>\n");
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<nav id=\"toc\"><a href=\"#s-meta\">1</a><a href=\"#s-inp\">2</a><a href=\"#s-sact\">3</a><a href=\"#s-risk\">4</a><a href=\"#s-tstats\">5</a>");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#s-kpi\">5b</a><a href=\"#s-strat\">6</a><a href=\"#s-regd\">7</a><a href=\"#s-sess\">8</a><a href=\"#s-vol\">9</a><a href=\"#s-lin\">10</a>");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#s-tox\">11</a><a href=\"#s-toxrad\">11b</a><a href=\"#s-capx\">12</a><a href=\"#s-surv\">13</a><a href=\"#s-rtl\">14</a><a href=\"#s-ghash\">15</a>");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#s-env\">16</a><a href=\"#s-cmp\">17</a><a href=\"#s-fail\">18</a><a href=\"#s-rec\">19</a><a href=\"#s-reco\">20</a></nav>\n<main>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<nav id=\"toc\" class=\"gov-toc\"><a href=\"#intel-s1\">01 Exec</a><a href=\"#intel-s2\">02 Meta</a><a href=\"#intel-s3\">03 Config</a>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s4\">04 Perf</a><a href=\"#intel-s5\">05 Ecology</a><a href=\"#intel-s6\">06 Consensus</a><a href=\"#intel-s7\">07 Signal</a>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s8\">08 Regime</a><a href=\"#intel-s9\">09 Session</a><a href=\"#intel-s10\">10 Lineage</a><a href=\"#intel-s11\">11 Breach</a>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s12\">12 Toxicity</a><a href=\"#intel-s13\">13 Forensics</a><a href=\"#intel-s14\">14 Reco</a><a href=\"#intel-s15\">15 Verdict</a>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-attest\">Attest</a></nav>\n<main class=\"gov-main\">\n");
+
+   GovIntelDossierV1_AppendExecutive(sym, tf, report_ts, mod, lin, sum, ex, tsx, html);
 
    GovBacktestMetaV1_AppendSection(report_id, report_ts, sym, tf, g_gov_dossier_git_commit_v1, g_gov_dossier_build_number_v1, tsx, html);
-   GovBacktestInpSnapV1_AppendSection(html);
-   GovBacktestDossierV1_AppendStrategyActivation(sum, tmp, html);
-   GovBacktestDossierV1_AppendRiskConfiguration(html);
-   GovBacktestMetaV1_AppendTradeStatistics(ex, tsx, html);
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-kpi\"><h2>5b. Executive KPI strip</h2>\n");
-   GovRuntimeVisualDashV1_AppendExecCards(ex, sum, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s3\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">03</span> Governance configuration</h2>\n");
+   GovIntelDossierV1_AppendGovernanceConfigIntro(html);
+   GovBacktestDossierV1_AppendRiskConfiguration(html);
+   GovBacktestDossierV1_AppendStrategyActivation(sum, tmp, html);
+   GovIntelDossierV1_AppendKvLensCards(html);
+   GovBacktestCapV1_AppendPanelBody(html);
+   GovBacktestInpSnapV1_AppendSection(html);
    GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-strat\"><h2>6. Strategy breakdown</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s4\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">04</span> Performance intelligence</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-lede\">Execution efficiency, capital utilization, and tester-bound risk metrics. Survivability matrix stress-tests nominal deposit tiers against observed DD.</p>\n");
+   GovBacktestMetaV1_AppendTradeStatisticsPanel(ex, tsx, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<h3 class=\"gov-h3\">Executive telemetry strip</h3>\n");
+   GovRuntimeVisualDashV1_AppendExecCards(ex, sum, html);
+   GovIntelDossierV1_AppendPerformanceSupplement(ex, sum, tsx, html);
+   GovBacktestSurvV1_AppendMatrixTable(ex, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s5\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">05</span> Strategy ecology intelligence</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-lede\">Strategies behave as coupled organisms: attribution, toxicity, and compatibility fields describe niche occupancy and failure propagation.</p>\n");
    GovRuntimeVisualChartV1_StrategyTable(sum, html);
    GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
 
-   GovBacktestDossierV1_AppendRegimeDossierTable(sum, tmp, html);
-   GovBacktestDossierV1_AppendSessionTable(sum, html);
-   GovBacktestDossierV1_AppendVolTable(sum, html);
+   GovIntelDossierV1_AppendConsensusIntel(sum, html);
+   GovIntelDossierV1_AppendSignalQualityIntel(sum, ex, html);
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-lin\"><h2>10. Position lineage</h2>\n");
+   GovBacktestDossierV1_AppendRegimeVolIntelSection(sum, tmp, html);
+   GovBacktestDossierV1_AppendSessionIntelTable(sum, html);
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s10\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">10</span> Lineage & mutation intelligence</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-lede\">Lifecycle graph with mutation telemetry; purple lane encodes propagation vectors for forensic pairing with breach diagnostics.</p>\n");
+   GovIntelDossierV1_AppendLineageMutationIntel(lin, html);
    GovRuntimeVisualLinV1_Build(lin, html);
    GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-tox\"><h2>11. Toxicity analytics</h2>\n");
+   GovBacktestFailV1_AppendSection(sym, mod, rec, sum, ex, lin, html);
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s12\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">12</span> Toxicity intelligence</h2>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-lede\">Toxicity distribution, radar decomposition, and escalation context for ecology governance.</p>\n");
    GovRuntimeVisualDashV1_AppendToxicityDetail(sum, html);
+   GovBacktestDossierV1_AppendToxicityRadarPanel(sum, tmp, html);
    GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
-   GovBacktestDossierV1_AppendToxicityRadar(sum, tmp, html);
 
-   GovBacktestCapV1_AppendSection(html);
-   GovBacktestSurvV1_AppendMatrix(ex, html);
+   GovIntelDossierV1_AppendForensicsShellOpen(html);
+   GovBacktestRecoveryV1_AppendSection(lin, html);
    GovBacktestReplayTlV1_AppendSection(mod, html, 96);
-
-   GovBacktestDossierV1_AppendGovernanceHashBlock(ex, sum, html);
-   GovBacktestEnvSnapV1_AppendSection(sym, html);
    SGovCmpRunRecordV1 cmp_cur;
    GovCmpStoreV1_FillCurrent(report_ts, sym, tf, sum, ex, lin, rec, cmp_cur);
    GovBacktestCmpV1_AppendSection(g_gov_backtest_input_kv_v1, cmp_baseline, cmp_cur, html);
-   GovBacktestFailV1_AppendSection(sym, mod, rec, sum, ex, lin, html);
-   GovBacktestRecoveryV1_AppendSection(lin, html);
-   GovBacktestRecV1_AppendSection(sum, ex, html);
+   GovIntelDossierV1_AppendForensicsShellClose(html);
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</main><footer>PHASE_20C GovernanceBacktestDossierV1 — cold path — LF-only — embedded CSS/JS</footer>\n<script>\n");
+   GovBacktestRecV1_AppendSection(sum, ex, html);
+   GovIntelDossierV1_AppendFinalVerdict(ex, sum, html);
+
+   GovBacktestDossierV1_AppendGovernanceHashBlock(ex, sum, html);
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</main><footer class=\"gov-footer\">Aurum Synapse governance intelligence dossier — cold path — LF-only — embedded CSS/JS — no external dependencies</footer>\n<script>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, GovRuntimeVisualJsV1_Embedded());
    GovRuntimeVisualHtmlW1_AppendLf(html, "</script></body></html>\n");
 }

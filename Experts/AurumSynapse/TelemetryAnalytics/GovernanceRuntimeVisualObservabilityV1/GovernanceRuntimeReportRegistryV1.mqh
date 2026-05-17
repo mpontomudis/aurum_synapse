@@ -122,7 +122,7 @@ inline string GovVisualV1_BuildUniqueReportId(const string wall_yyyymmdd_hhmmss,
       sch = StringGetCharacter(sym, 0);
    int mix = (int)wch + (int)sch;
    mix ^= run_index * 7919;
-   mix ^= (int)(salt_u32 & 0xFFFFu);
+   mix ^= (int)(salt_u32 & 0xFFFF); // MQL5: no 0xFFFFu suffix (u parsed as identifier)
    mix &= 0xFFFF;
    return StringFormat("%s_%s_%s_%d_%04X_RUN_%04d", wall_yyyymmdd_hhmmss, sym, tf_short, deposit_whole, mix, run_index);
 }

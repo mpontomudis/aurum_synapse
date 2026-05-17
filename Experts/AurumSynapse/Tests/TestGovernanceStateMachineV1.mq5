@@ -4774,7 +4774,7 @@ bool GovTest_VisualSurvivability(void) {
     ex.balance_dd_rel_pct = 25.0;
     string html = "";
     GovRuntimeVisualDashV1_BuildHtml(Symbol(), g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
-    if(StringFind(html, "Survivability Matrix") < 0)
+    if(StringFind(html, "Survivability") < 0)
         return Fail("vis_surv_hdr");
     if(StringFind(html, "$200") < 0)
         return Fail("vis_surv_row");
@@ -4809,6 +4809,261 @@ bool T_VISUAL_Survivability(void) {
 }
 bool T_VISUAL_ReplayHash(void) {
     return GovTest_VisualReplayHash();
+}
+
+//+------------------------------------------------------------------+
+//| GOVERNANCE_BACKTEST_DOSSIER_INTELLIGENCE_V1 — harness tests      |
+//+------------------------------------------------------------------+
+bool GovTest_DossierMetadata(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeVisualIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX001", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "1. Metadata") < 0)
+        return Fail("doss_meta");
+    if(StringFind(html, "report_id") < 0)
+        return Fail("doss_meta_rid");
+    return true;
+}
+
+bool GovTest_InputSnapshot(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovBacktestInpSnapV1_Reset();
+    g_gov_backtest_input_kv_v1 = "UNIT_KEY=UNIT_VAL\n";
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX002", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "UNIT_KEY") < 0)
+        return Fail("doss_inp");
+    return true;
+}
+
+bool GovTest_StrategyBreakdown(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX003", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "6. Strategy breakdown") < 0)
+        return Fail("doss_strat_sec");
+    if(StringFind(html, "tblStrat") < 0)
+        return Fail("doss_strat_tbl");
+    return true;
+}
+
+bool GovTest_RegimeBreakdown(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX004", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "7. Regime breakdown") < 0)
+        return Fail("doss_reg");
+    if(StringFind(html, "TRENDING") < 0)
+        return Fail("doss_reg_lab");
+    return true;
+}
+
+bool GovTest_LineageTree(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovLineageV1_Reset(g_gov_lineage_reg_v1);
+    GovLineageV1_RegisterRoot(g_gov_lineage_reg_v1, 992001UL, (int)GOV_STRAT_TF, TimeCurrent());
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX005", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "10. Position lineage") < 0)
+        return Fail("doss_lin_sec");
+    if(StringFind(html, "ROOT_LINEAGE_") < 0)
+        return Fail("doss_lin_root");
+    return true;
+}
+
+bool GovTest_ToxicityAnalytics(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX006", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "11. Toxicity analytics") < 0)
+        return Fail("doss_tox");
+    if(StringFind(html, "11b. Toxicity radar") < 0)
+        return Fail("doss_tox_rad");
+    return true;
+}
+
+bool GovTest_CapitalDiagnostics(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    GovRuntimeObsV1_RefreshAccountSnapshot(Symbol());
+    GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_LOT_COLLAPSE_MIN_VOLUME, 0.0031, 0.0, 412.0);
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX007", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "12. Capital diagnostics") < 0)
+        return Fail("doss_cap");
+    return true;
+}
+
+bool GovTest_SurvivabilityMatrix(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    ex.balance_dd_rel_pct = 30.0;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX008", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "13. Survivability matrix") < 0)
+        return Fail("doss_surv");
+    return true;
+}
+
+bool GovTest_ComparativeInsights(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovBacktestInpSnapV1_Reset();
+    g_gov_backtest_input_kv_v1 = "k=v\n";
+    g_gov_dossier_compare_baseline_kv_v1 = "k=v\n";
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX009", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "IDENTICAL_PAYLOAD") < 0)
+        return Fail("doss_cmp");
+    g_gov_dossier_compare_baseline_kv_v1 = "";
+    return true;
+}
+
+bool GovTest_FailureDiagnostics(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovRuntimeObsIntV1_ModuleInit();
+    GovRuntimeObsV1_RefreshAccountSnapshot(Symbol());
+    GovRuntimeObsV1_FeedOrderContext((int)GOV_CAP_RES_LOT_COLLAPSE_MIN_VOLUME, 0.01, 0.0, 500.0);
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    ex.balance_dd_rel_pct = 40.0;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX010", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "18. Failure diagnostics") < 0)
+        return Fail("doss_fail");
+    return true;
+}
+
+bool GovTest_RecoveryAnalysis(void) {
+    GovRunTagIntV1_ModuleInit();
+    GovLineageV1_Reset(g_gov_lineage_reg_v1);
+    GovLineageV1_RegisterRoot(g_gov_lineage_reg_v1, 993001UL, (int)GOV_STRAT_GR, TimeCurrent());
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX011", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "19. Recovery analysis") < 0)
+        return Fail("doss_rec");
+    return true;
+}
+
+bool GovTest_Recommendations(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string html = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX012", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, html);
+    if(StringFind(html, "20. Recommendations") < 0)
+        return Fail("doss_reco");
+    return true;
+}
+
+bool GovTest_DeterministicExport(void) {
+    GovRunTagIntV1_ModuleInit();
+    SGovStratAttribSummaryV1 sum;
+    GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
+    SGovVisualExecSummaryV1 ex;
+    GovRuntimeVisualDsV1_InitExec(ex);
+    ex.valid = 1;
+    string a = "", b = "";
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX013", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, a);
+    GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX013", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, sum, ex, b);
+    if(a != b)
+        return Fail("doss_det");
+    return true;
+}
+
+bool T_DOSSIER_Metadata(void) {
+    return GovTest_DossierMetadata();
+}
+bool T_DOSSIER_InputSnapshot(void) {
+    return GovTest_InputSnapshot();
+}
+bool T_DOSSIER_StrategyBreakdown(void) {
+    return GovTest_StrategyBreakdown();
+}
+bool T_DOSSIER_RegimeBreakdown(void) {
+    return GovTest_RegimeBreakdown();
+}
+bool T_DOSSIER_LineageTree(void) {
+    return GovTest_LineageTree();
+}
+bool T_DOSSIER_ToxicityAnalytics(void) {
+    return GovTest_ToxicityAnalytics();
+}
+bool T_DOSSIER_CapitalDiagnostics(void) {
+    return GovTest_CapitalDiagnostics();
+}
+bool T_DOSSIER_SurvivabilityMatrix(void) {
+    return GovTest_SurvivabilityMatrix();
+}
+bool T_DOSSIER_ComparativeInsights(void) {
+    return GovTest_ComparativeInsights();
+}
+bool T_DOSSIER_FailureDiagnostics(void) {
+    return GovTest_FailureDiagnostics();
+}
+bool T_DOSSIER_RecoveryAnalysis(void) {
+    return GovTest_RecoveryAnalysis();
+}
+bool T_DOSSIER_Recommendations(void) {
+    return GovTest_Recommendations();
+}
+bool T_DOSSIER_DeterministicExport(void) {
+    return GovTest_DeterministicExport();
 }
 
 bool GovTest_RunTagIdentity(void) {
@@ -5340,6 +5595,32 @@ int OnInit() {
     if(!T_VISUAL_Survivability())
         return INIT_FAILED;
     if(!T_VISUAL_ReplayHash())
+        return INIT_FAILED;
+    if(!T_DOSSIER_Metadata())
+        return INIT_FAILED;
+    if(!T_DOSSIER_InputSnapshot())
+        return INIT_FAILED;
+    if(!T_DOSSIER_StrategyBreakdown())
+        return INIT_FAILED;
+    if(!T_DOSSIER_RegimeBreakdown())
+        return INIT_FAILED;
+    if(!T_DOSSIER_LineageTree())
+        return INIT_FAILED;
+    if(!T_DOSSIER_ToxicityAnalytics())
+        return INIT_FAILED;
+    if(!T_DOSSIER_CapitalDiagnostics())
+        return INIT_FAILED;
+    if(!T_DOSSIER_SurvivabilityMatrix())
+        return INIT_FAILED;
+    if(!T_DOSSIER_ComparativeInsights())
+        return INIT_FAILED;
+    if(!T_DOSSIER_FailureDiagnostics())
+        return INIT_FAILED;
+    if(!T_DOSSIER_RecoveryAnalysis())
+        return INIT_FAILED;
+    if(!T_DOSSIER_Recommendations())
+        return INIT_FAILED;
+    if(!T_DOSSIER_DeterministicExport())
         return INIT_FAILED;
     if(!GovTestHarnessV1_ReplayLoopShell(6))
         return INIT_FAILED;

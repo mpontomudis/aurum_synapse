@@ -123,6 +123,11 @@ input bool InpGovVisualHtmlExport = true;                     // Write governanc
 input bool InpGovVisualSidecars = false;                      // Optional .css / .js / .json next to HTML
 input bool InpGovVisualHtmlOnTester = true;                   // Emit HTML from OnTester() when in Strategy Tester
 
+input group "=== GOVERNANCE BACKTEST DOSSIER (PHASE 20B) ==="
+input string InpGovDossierGitCommit = "";                    // Optional git SHA / build id for dossier metadata
+input int InpGovDossierBuildNumber = 0;                       // Optional CI build number
+input bool InpGovDossierCompareExport = false;                // Also write *_governance_report_compare.html stub
+
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
 //+------------------------------------------------------------------+
@@ -280,6 +285,86 @@ void Aurum_LogH2GateOncePerDay(const datetime barTime, const ENUM_SIGNAL_REJECT_
                 TimeToString(barTime, TIME_DATE | TIME_MINUTES),
                 Aurum_RejectReasonText(reason),
                 (uint)dayKey);
+}
+
+//+------------------------------------------------------------------+
+//| PHASE 20B — dossier reproducibility snapshot (cold path only)    |
+//+------------------------------------------------------------------+
+string Aurum_FmtDossierInputSnapshotV1(void) {
+    string o = "";
+    o += "InpLotMethod=" + EnumToString(InpLotMethod) + "\n";
+    o += "InpFixedLot=" + DoubleToString(InpFixedLot, 4) + "\n";
+    o += "InpRiskPercent=" + DoubleToString(InpRiskPercent, 2) + "\n";
+    o += "InpBalanceStep=" + DoubleToString(InpBalanceStep, 2) + "\n";
+    o += "InpBaseLotPerStep=" + DoubleToString(InpBaseLotPerStep, 4) + "\n";
+    o += "InpMagicNumber=" + IntegerToString(InpMagicNumber) + "\n";
+    o += "InpMaxSpreadPoints=" + IntegerToString(InpMaxSpreadPoints) + "\n";
+    o += "InpUseTrendFollowing=" + IntegerToString((int)InpUseTrendFollowing) + "\n";
+    o += "InpUseBreakout=" + IntegerToString((int)InpUseBreakout) + "\n";
+    o += "InpUseMeanReversion=" + IntegerToString((int)InpUseMeanReversion) + "\n";
+    o += "InpUseSupplyDemand=" + IntegerToString((int)InpUseSupplyDemand) + "\n";
+    o += "InpUseSmartMoney=" + IntegerToString((int)InpUseSmartMoney) + "\n";
+    o += "InpUsePriceAction=" + IntegerToString((int)InpUsePriceAction) + "\n";
+    o += "InpUseGridRecovery=" + IntegerToString((int)InpUseGridRecovery) + "\n";
+    o += "InpUseMomentumScalp=" + IntegerToString((int)InpUseMomentumScalp) + "\n";
+    o += "InpMaxRiskPerTrade=" + DoubleToString(InpMaxRiskPerTrade, 2) + "\n";
+    o += "InpMaxDailyLossPct=" + DoubleToString(InpMaxDailyLossPct, 2) + "\n";
+    o += "InpMaxEquityDD=" + DoubleToString(InpMaxEquityDD, 2) + "\n";
+    o += "InpMaxConsecutiveLosses=" + IntegerToString(InpMaxConsecutiveLosses) + "\n";
+    o += "InpMaxOpenPositions=" + IntegerToString(InpMaxOpenPositions) + "\n";
+    o += "InpUseTimeFilter=" + IntegerToString((int)InpUseTimeFilter) + "\n";
+    o += "InpHourFrom=" + IntegerToString(InpHourFrom) + "\n";
+    o += "InpHourTo=" + IntegerToString(InpHourTo) + "\n";
+    o += "InpTradeMon=" + IntegerToString((int)InpTradeMon) + "\n";
+    o += "InpTradeTue=" + IntegerToString((int)InpTradeTue) + "\n";
+    o += "InpTradeWed=" + IntegerToString((int)InpTradeWed) + "\n";
+    o += "InpTradeThu=" + IntegerToString((int)InpTradeThu) + "\n";
+    o += "InpTradeFri=" + IntegerToString((int)InpTradeFri) + "\n";
+    o += "InpMinQualityScore=" + IntegerToString(InpMinQualityScore) + "\n";
+    o += "InpRequireTrendAlignment=" + IntegerToString((int)InpRequireTrendAlignment) + "\n";
+    o += "InpRequireKeyLevel=" + IntegerToString((int)InpRequireKeyLevel) + "\n";
+    o += "InpRequireMomentum=" + IntegerToString((int)InpRequireMomentum) + "\n";
+    o += "InpMinConsensus=" + IntegerToString(InpMinConsensus) + "\n";
+    o += "InpTPCoefficient=" + DoubleToString(InpTPCoefficient, 2) + "\n";
+    o += "InpSLPoints=" + DoubleToString(InpSLPoints, 1) + "\n";
+    o += "InpUseTrailing=" + IntegerToString((int)InpUseTrailing) + "\n";
+    o += "InpTrailStartPips=" + DoubleToString(InpTrailStartPips, 1) + "\n";
+    o += "InpTrailDistPips=" + DoubleToString(InpTrailDistPips, 1) + "\n";
+    o += "InpShowPanel=" + IntegerToString((int)InpShowPanel) + "\n";
+    o += "InpPanelUpdateSeconds=" + IntegerToString(InpPanelUpdateSeconds) + "\n";
+    o += "InpDiagH2JulDec=" + IntegerToString((int)InpDiagH2JulDec) + "\n";
+    o += "InpInvestigationSignalObservability=" + IntegerToString((int)InpInvestigationSignalObservability) + "\n";
+    o += "InpGovRuntimeTagAppendComment=" + IntegerToString((int)InpGovRuntimeTagAppendComment) + "\n";
+    o += "InpGovRuntimeObsJournal=" + IntegerToString((int)InpGovRuntimeObsJournal) + "\n";
+    o += "InpGovRuntimeObsFile=" + IntegerToString((int)InpGovRuntimeObsFile) + "\n";
+    o += "InpGovRuntimeObsFilePath=" + InpGovRuntimeObsFilePath + "\n";
+    o += "InpGovRuntimeObsOnTester=" + IntegerToString((int)InpGovRuntimeObsOnTester) + "\n";
+    o += "InpGovVisualHtmlExport=" + IntegerToString((int)InpGovVisualHtmlExport) + "\n";
+    o += "InpGovVisualSidecars=" + IntegerToString((int)InpGovVisualSidecars) + "\n";
+    o += "InpGovVisualHtmlOnTester=" + IntegerToString((int)InpGovVisualHtmlOnTester) + "\n";
+    o += "InpGovDossierGitCommit=" + InpGovDossierGitCommit + "\n";
+    o += "InpGovDossierBuildNumber=" + IntegerToString(InpGovDossierBuildNumber) + "\n";
+    o += "InpGovDossierCompareExport=" + IntegerToString((int)InpGovDossierCompareExport) + "\n";
+    return o;
+}
+
+void Aurum_FillDossierColdSnapshotV1(void) {
+    g_gov_dossier_git_commit_v1 = (StringLen(InpGovDossierGitCommit) > 0) ? InpGovDossierGitCommit : "unset";
+    g_gov_dossier_build_number_v1 = InpGovDossierBuildNumber;
+    g_gov_dossier_strat_en_v1[0] = InpUseTrendFollowing;
+    g_gov_dossier_strat_en_v1[1] = InpUseBreakout;
+    g_gov_dossier_strat_en_v1[2] = InpUseMeanReversion;
+    g_gov_dossier_strat_en_v1[3] = InpUseSupplyDemand;
+    g_gov_dossier_strat_en_v1[4] = InpUseSmartMoney;
+    g_gov_dossier_strat_en_v1[5] = InpUsePriceAction;
+    g_gov_dossier_strat_en_v1[6] = InpUseGridRecovery;
+    g_gov_dossier_strat_en_v1[7] = InpUseMomentumScalp;
+    g_gov_dossier_risk_v1.max_risk_per_trade = InpMaxRiskPerTrade;
+    g_gov_dossier_risk_v1.max_daily_loss_pct = InpMaxDailyLossPct;
+    g_gov_dossier_risk_v1.max_equity_dd_pct = InpMaxEquityDD;
+    g_gov_dossier_risk_v1.max_consecutive_losses = InpMaxConsecutiveLosses;
+    g_gov_dossier_risk_v1.max_open_positions = InpMaxOpenPositions;
+    g_gov_backtest_input_kv_v1 = Aurum_FmtDossierInputSnapshotV1();
 }
 
 //+------------------------------------------------------------------+
@@ -462,7 +547,8 @@ void OnDeinit(const int reason) {
 #endif
     GovRuntimeObsIntV1_EmitEndOfRun(_Symbol, reason);
     if(InpGovVisualHtmlExport && MQLInfoInteger(MQL_TESTER) == 0) {
-        GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, InpGovVisualSidecars);
+        Aurum_FillDossierColdSnapshotV1();
+        GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, _Period, InpGovVisualSidecars, InpGovDossierCompareExport);
     }
     Print("!!!!! ONDEINIT CALLED - REASON: ", reason, " !!!!!");
     Logger::Info("========================================");
@@ -1268,8 +1354,10 @@ void Cleanup() {
 double OnTester() {
     if(InpGovRuntimeObsOnTester)
         GovRuntimeObsIntV1_EmitEndOfRun(_Symbol, 0);
-    if(InpGovVisualHtmlExport && InpGovVisualHtmlOnTester)
-        GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, InpGovVisualSidecars);
+    if(InpGovVisualHtmlExport && InpGovVisualHtmlOnTester) {
+        Aurum_FillDossierColdSnapshotV1();
+        GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, _Period, InpGovVisualSidecars, InpGovDossierCompareExport);
+    }
     return 0.0;
 }
 

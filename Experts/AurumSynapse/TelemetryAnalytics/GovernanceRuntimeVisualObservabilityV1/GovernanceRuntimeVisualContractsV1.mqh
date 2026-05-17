@@ -13,5 +13,8 @@
 #define GOV_VISUAL_CSS_EXT_V1          "_governance_report.css"
 #define GOV_VISUAL_JS_EXT_V1           "_governance_report.js"
 #define GOV_VISUAL_JSON_EXT_V1         "_governance_report.json"
+#define GOV_DOSSIER_COMPARE_EXT_V1     "_governance_report_compare.html"
+
+#define GOV_DOSSIER_SCHEMA_VER_V1      ((uint)1)
 
 #endif // __AURUM_GOV_RUNTIME_VISUAL_CONTRACTS_V1_MQH__

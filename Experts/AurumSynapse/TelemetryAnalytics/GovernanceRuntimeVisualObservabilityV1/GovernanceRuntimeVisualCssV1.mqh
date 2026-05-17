@@ -33,6 +33,16 @@ inline string GovRuntimeVisualCssV1_Embedded(void)
    c += "summary{cursor:pointer;color:#58a6ff;font-weight:600;}\n";
    c += "ul.tree{list-style:none;padding-left:14px;margin:4px 0;border-left:1px solid #30363d;}\n";
    c += "footer{padding:16px 24px;color:#8b949e;font-size:0.8rem;border-top:1px solid #30363d;}\n";
+   c += "nav#toc{position:sticky;top:0;z-index:20;background:#11161d;border-bottom:1px solid #30363d;padding:10px 24px;font-size:0.8rem;}\n";
+   c += "nav#toc a{color:#58a6ff;margin-right:12px;text-decoration:none;}\n";
+   c += "nav#toc a:hover{text-decoration:underline;}\n";
+   c += ".doss-meta td:first-child{width:220px;color:#8b949e;}\n";
+   c += ".inp-filter{width:100%;max-width:480px;margin:8px 0;padding:6px 8px;border-radius:6px;border:1px solid #30363d;background:#0d1117;color:#e6edf3;}\n";
+   c += ".sev-crit{color:#f85149;font-weight:700;}\n";
+   c += ".sev-warn{color:#d29922;font-weight:700;}\n";
+   c += ".sev-opt{color:#58a6ff;font-weight:600;}\n";
+   c += ".sev-stab{color:#3fb950;font-weight:600;}\n";
+   c += ".mono{font-family:ui-monospace,Consolas,monospace;font-size:0.78rem;}\n";
    return c;
 }
 

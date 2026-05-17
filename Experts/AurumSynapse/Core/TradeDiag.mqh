@@ -6,6 +6,8 @@
 #ifndef __TRADEDIAG_MQH__
 #define __TRADEDIAG_MQH__
 
+#include "../TelemetryAnalytics/GovernanceRuntimeObservabilityExportV1/GovernanceRuntimeObservabilityDatasetV1.mqh"
+
 //+------------------------------------------------------------------+
 //| Map CTrade retcode → short Reason= label (TradeDiag_Blocked)      |
 //+------------------------------------------------------------------+
@@ -48,6 +50,7 @@ void TradeDiag_Blocked(const string reason,
     Print("CurrentOpenPositions=", opStr);
     Print("Symbol=", sym);
     Print("Timestamp=", TimeToString(TimeCurrent(), TIME_DATE | TIME_SECONDS));
+    GovRuntimeObsV1_FeedTradeBlocked(reason, requestedLot);
 }
 
 //+------------------------------------------------------------------+

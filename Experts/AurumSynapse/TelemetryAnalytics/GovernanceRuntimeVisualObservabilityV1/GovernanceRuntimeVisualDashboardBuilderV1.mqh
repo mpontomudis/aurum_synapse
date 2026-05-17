@@ -143,6 +143,53 @@ inline void GovRuntimeVisualDashV1_AppendExecCards(const SGovVisualExecSummaryV1
                                          GovRuntimeVisualChartV1_ToxLabel(avgtox) + "</span></div></div>\n");
 }
 
+inline void GovRuntimeVisualDashV1_AppendLegacyAnalyticsCore(const string sym,
+                                                            const SGovRuntimeTaggingModuleV1 &mod,
+                                                            const SGovLineageRegistryStoreV1 &lin,
+                                                            SGovStratAttribSummaryV1 &sum,
+                                                            const SGovVisualExecSummaryV1 &ex,
+                                                            string &html)
+{
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-exec\"><h2>Executive summary (core)</h2>\n");
+   GovRuntimeVisualDashV1_AppendExecCards(ex, sum, html);
+   if(ex.valid == 0)
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<p><i>Tester statistics unavailable (not in Strategy Tester).</i></p>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p><b>Stability classification:</b> <code>" + GovRuntimeVisualHtmlW1_Escape(GovRuntimeVisualDashV1_StabilityClass(ex, sum)) + "</code></p>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-strat\"><h2>Strategy breakdown (core)</h2>\n");
+   GovRuntimeVisualChartV1_StrategyTable(sum, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-lin\"><h2>Position lineage (core)</h2>\n");
+   GovRuntimeVisualLinV1_Build(lin, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-tox\"><h2>Toxicity analytics (core)</h2>\n");
+   GovRuntimeVisualDashV1_AppendToxicityDetail(sum, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-cap\"><h2>Capital diagnostics (core)</h2>\n");
+   GovRuntimeVisualDashV1_AppendCapital(g_gov_runtime_obs_report_v1.cap, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-surv\"><h2>Survivability matrix (core)</h2>\n<table><thead><tr><th>Deposit</th><th>Status</th></tr></thead><tbody>\n");
+   const double dd = ex.balance_dd_rel_pct;
+   const double d0[5] = {200.0, 500.0, 1000.0, 3000.0, 10000.0};
+   for(int j = 0; j < 5; j++)
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>$" + DoubleToString(d0[j], 0) + "</td><td>" +
+                                         GovRuntimeVisualHtmlW1_Escape(GovRuntimeVisualDashV1_SurvivabilityStatus(d0[j], dd)) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-reg\"><h2>Regime analytics (core)</h2>\n");
+   GovRuntimeVisualChartV1_RegimeTable(sum, html);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"s-tl\"><h2>Replay timeline (core)</h2>\n");
+   GovRuntimeVisualDashV1_AppendBridgeTimeline(mod, html, 64);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+}
+
 inline void GovRuntimeVisualDashV1_BuildHtml(const string sym,
                                             const SGovRuntimeTaggingModuleV1 &mod,
                                             const SGovLineageRegistryStoreV1 &lin,
@@ -161,44 +208,7 @@ inline void GovRuntimeVisualDashV1_BuildHtml(const string sym,
    GovRuntimeVisualHtmlW1_AppendLf(html, "<header><h1>Governance Runtime Visual Observability — " + GovRuntimeVisualHtmlW1_Escape(sym) + "</h1>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div style=\"font-size:0.8rem;color:#8b949e;margin-top:6px;\">ABI=" + IntegerToString((int)GOV_VISUAL_ABI_VER_V1) + " | magic=" + IntegerToString((int)GOV_VISUAL_MAGIC_V1) + "</div></header>\n<main>\n");
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section><h2>1. Executive Summary</h2>\n");
-   GovRuntimeVisualDashV1_AppendExecCards(ex, sum, html);
-   if(ex.valid == 0)
-      GovRuntimeVisualHtmlW1_AppendLf(html, "<p><i>Tester statistics unavailable (not in Strategy Tester).</i></p>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<p><b>Stability classification:</b> <code>" + GovRuntimeVisualHtmlW1_Escape(GovRuntimeVisualDashV1_StabilityClass(ex, sum)) + "</code></p>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
-
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section><h2>2. Strategy Breakdown</h2>\n");
-   GovRuntimeVisualChartV1_StrategyTable(sum, html);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
-
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section><h2>3. Position Lineage Graph</h2>\n");
-   GovRuntimeVisualLinV1_Build(lin, html);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
-
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section><h2>4. Toxicity Analytics</h2>\n");
-   GovRuntimeVisualDashV1_AppendToxicityDetail(sum, html);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
-
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section><h2>5. Capital Diagnostics</h2>\n");
-   GovRuntimeVisualDashV1_AppendCapital(g_gov_runtime_obs_report_v1.cap, html);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
-
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section><h2>6. Survivability Matrix (synthetic tiers)</h2>\n<table><thead><tr><th>Deposit</th><th>Status</th></tr></thead><tbody>\n");
-   const double dd = ex.balance_dd_rel_pct;
-   const double d0[5] = {200.0, 500.0, 1000.0, 3000.0, 10000.0};
-   for(int j = 0; j < 5; j++)
-      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>$" + DoubleToString(d0[j], 0) + "</td><td>" +
-                                         GovRuntimeVisualHtmlW1_Escape(GovRuntimeVisualDashV1_SurvivabilityStatus(d0[j], dd)) + "</td></tr>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
-
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section><h2>7. Regime Analytics</h2>\n");
-   GovRuntimeVisualChartV1_RegimeTable(sum, html);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
-
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<section><h2>8. Replay Timeline (bridge slice)</h2>\n");
-   GovRuntimeVisualDashV1_AppendBridgeTimeline(mod, html, 64);
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+   GovRuntimeVisualDashV1_AppendLegacyAnalyticsCore(sym, mod, lin, sum, ex, html);
 
    const string snap = html;
    const ulong h_replay = GovRuntimeObsReplayV1_Hash64(snap);

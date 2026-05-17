@@ -23,6 +23,15 @@ inline string GovRuntimeVisualJsV1_Embedded(void)
    j += " rows.forEach(function(r){tb.appendChild(r);});\n";
    j += "}\n";
    j += "window.govSort=function(id,c){sortTable(id,c);};\n";
+   j += "window.govFilterRows=function(inpId,tableId){\n";
+   j += " var inp=document.getElementById(inpId); var t=document.getElementById(tableId);\n";
+   j += " if(!inp||!t||!t.tBodies[0]) return;\n";
+   j += " var q=inp.value.toLowerCase(); var rows=t.tBodies[0].rows;\n";
+   j += " for(var i=0;i<rows.length;i++){\n";
+   j += "  var txt=rows[i].innerText.toLowerCase();\n";
+   j += "  rows[i].style.display=(q.length===0||txt.indexOf(q)>=0)?'':'none';\n";
+   j += " }\n";
+   j += "}\n";
    j += "})();\n";
    return j;
 }

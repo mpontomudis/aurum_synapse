@@ -19,6 +19,8 @@ struct SGovVisualExecSummaryV1
    int    total_trades;
    int    profit_trades;
    int    loss_trades;
+   int    long_trades;
+   int    short_trades;
    int    valid;
 };
 
@@ -36,6 +38,8 @@ inline void GovRuntimeVisualDsV1_InitExec(SGovVisualExecSummaryV1 &e)
    e.total_trades = 0;
    e.profit_trades = 0;
    e.loss_trades = 0;
+   e.long_trades = 0;
+   e.short_trades = 0;
    e.valid = 0;
 }
 
@@ -54,6 +58,8 @@ inline void GovRuntimeVisualDsV1_FromTester(SGovVisualExecSummaryV1 &e)
    e.total_trades = (int)TesterStatistics(STAT_TRADES);
    e.profit_trades = (int)TesterStatistics(STAT_PROFIT_TRADES);
    e.loss_trades = (int)TesterStatistics(STAT_LOSS_TRADES);
+   e.long_trades = (int)TesterStatistics(STAT_LONG_TRADES);
+   e.short_trades = (int)TesterStatistics(STAT_SHORT_TRADES);
    e.valid = 1;
 }
 

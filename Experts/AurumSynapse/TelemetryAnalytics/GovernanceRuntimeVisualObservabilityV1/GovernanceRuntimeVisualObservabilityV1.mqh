@@ -13,9 +13,7 @@
 #include "GovernanceRuntimeVisualCssV1.mqh"
 #include "GovernanceRuntimeVisualJsV1.mqh"
 #include "GovernanceRuntimeVisualReplayV1.mqh"
-#include "GovernanceRuntimeVisualChartBuilderV1.mqh"
-#include "GovernanceRuntimeVisualLineageGraphV1.mqh"
-#include "GovernanceRuntimeVisualDashboardBuilderV1.mqh"
+#include "GovernanceBacktestDossierV1.mqh"
 #include "GovernanceRuntimeVisualExportV1.mqh"
 #include "GovernanceRuntimeVisualIntegrationV1.mqh"
 

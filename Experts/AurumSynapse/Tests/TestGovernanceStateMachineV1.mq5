@@ -17,6 +17,7 @@
 #include "../TelemetryAnalytics/GovernanceEcologyEngineV1/GovernanceEcologyIntegrationV1.mqh"
 #include "../TelemetryAnalytics/GovernanceRestrictionForensicsV1/GovernanceRestrictionForensicsIntegrationV1.mqh"
 #include "../TelemetryAnalytics/RiskLockIntelligenceV1/RiskLockIntelligenceIntegrationV1.mqh"
+#include "../TelemetryAnalytics/AdaptiveThawStabilizationV1/AdaptiveThawStabilizationIntegrationV1.mqh"
 
 SGovCmpRunRecordV1 g_gov_test_cmp_baseline_row_v1;
 
@@ -5342,6 +5343,47 @@ bool GovTest_Phase236RiskLockIntelV1(void) {
     return true;
 }
 
+bool GovTest_Phase237AdaptiveThawStabilizationV1(void) {
+    GovAtsIntV1_ModuleInit();
+    GovAtsIntV1_Configure(true);
+    GovRliIntV1_ModuleInit();
+    GovRliIntV1_Configure(true);
+    GovRfIntV1_ModuleInit();
+    GovRfIntV1_Configure(true);
+    GovEcolIntV1_ModuleInit();
+    GovEcolIntV1_Configure(true);
+    GovRliEngV1_OnBarEndStoreEco(g_gov_rli_v1, 2);
+    const datetime ts0 = (datetime)1800000000;
+    GovRliIntV1_OnBarPostCanTrade(ts0, 1UL, false, (int)AS_CT_DENY_DD_LOCK, (int)HALT_DRAWDOWN, 0, 12.0, 10000.0, 9400.0, 22.0, 1.15, 2, 30, false, true);
+    GovRliIntV1_OnBarPostCanTrade(ts0 + 60, 2UL, true, (int)AS_CT_DENY_NONE, (int)HALT_NONE, 0, 1.2, 10000.0, 9985.0, 18.0, 1.0, 2, 30, false, true);
+    GovRfEngV1_OnRiskSample(g_gov_rf_v1, true, (int)AS_CT_DENY_NONE);
+    GovRfEngV1_OnRiskSample(g_gov_rf_v1, false, (int)AS_CT_DENY_DD_LOCK);
+    g_gov_ecology_v1.s[0].bars_participation = 12;
+    g_gov_ecology_v1.s[1].bars_participation = 8;
+    g_gov_ecology_v1.last_bar_suppress_clears = 2;
+    GovAtsIntV1_OnBar(2UL, 1.1, 10000.0, 9975.0, 20.0, 1.02, true);
+    if(g_gov_ats_v1.bars_observed != 1UL)
+        return Fail("ats237_bars");
+    if(g_gov_ats_v1.thaw_state_hist[g_gov_ats_v1.last_thaw_state] < 1UL)
+        return Fail("ats237_thaw_hist");
+    if(GovAtsEngV1_ClassifyLockDecay(true, 350UL) != (int)GOV_ATS_DECAY_PARALYSIS_LOOP_V1)
+        return Fail("ats237_decay_cls");
+    if(GovAtsEngV1_ClassifyFloatV2(1.5, 0.5, 2.5) != (int)GOV_ATS_FLOAT2_ELEVATED_V1)
+        return Fail("ats237_float2_cls");
+    if(GovAtsEngV1_ClassifyParalysis(850.0, 100.0) != (int)GOV_ATS_PAR_PARALYZED_V1)
+        return Fail("ats237_paralysis_cls");
+    if(GovAtsEngV1_ClassifyRecoveryState(12.0, 0.05) != (int)GOV_ATS_REC_COLLAPSING_V1)
+        return Fail("ats237_recovery_cls");
+    if(GovAtsEngV1_ClassifyThawState(800.0, 80.0, true, false, 2.0, 2.0) != (int)GOV_ATS_THAW_HEALTHY_V1)
+        return Fail("ats237_thaw_cls");
+    GovAtsIntV1_FlushPersistence();
+    GovAtsIntV1_Configure(false);
+    GovRliIntV1_Configure(false);
+    GovRfIntV1_Configure(false);
+    GovEcolIntV1_Configure(false);
+    return true;
+}
+
 int OnInit() {
     GovCmpDsV1_Init(g_gov_test_cmp_baseline_row_v1);
     if(!T_Evidence_FusionDeterminism())
@@ -5887,6 +5929,8 @@ int OnInit() {
     if(!GovTest_Phase235RestrictionForensicsV1())
         return INIT_FAILED;
     if(!GovTest_Phase236RiskLockIntelV1())
+        return INIT_FAILED;
+    if(!GovTest_Phase237AdaptiveThawStabilizationV1())
         return INIT_FAILED;
 
     Print("[GOV_SM_V1_TEST] STATUS=PASS suite=governance_kernel_v1");

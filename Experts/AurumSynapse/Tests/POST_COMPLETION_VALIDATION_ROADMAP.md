@@ -4,7 +4,7 @@
 **Version:** 2.0  
 **Status:** Phase 1 complete — **Phase 2** — **§2.4 Require sweep ✅** (`2.4.A`–`2.4.D` logged); **FY net-max lock** still **`2.2.D`** (Q**60**, all Require **false**) — **P0:** **§3.8** **MomentumScalp** **Aug–Dec** silence + **`2.4.C`** Inputs verify *(**§3.1 TrendFollowing** **VERIFIED CORE** — **§3.9** **462**-row lock **`InpMaxSpreadPoints = 50`** + **Phase 3D** contamination **rejected** — see **§Test 3.1** + **PHASE 3D**)* — **CHECKPOINT 3.10** **COMPLETE** (**May 11, 2026**): **V1 production lock** **TF+BO**; **`SupplyDemand`** **ensemble-offender** → **Phase 5** forensic (**PHASE 4A** triple capture **superseded** by pairwise matrix — **see CHECKPOINT 3.10**); **Phase 4** **rollup** **May 11, 2026**: **4.1** **INCONCLUSIVE** · **4.2** **PASS behavioral** · **4.3** **PASS behavioral** **post-fix** · **4.4** **PASS** — **PARTIAL** — **see** **PHASE 4** **checklist**; **Phase 5** — **CHECKPOINT 5.1 — TF+BO Q-sweep** (**Q55/Q60/Q65**) **logged** (**Q60** **optimum** — **see** **Phase 5** **below** **Phase 5A**); **CHECKPOINT 3.12** **session** **forensics** (**S4/S5**) **logged**; **CHECKPOINT 3.13** **Trade execution diagnostics** (`Core/TradeDiag.mqh`, **`[TRADE_BLOCKED]`** / **`[TRADE_ALLOWED]`**) **shipped** — see **ENGINEERING LOCK §D**; **GATE-0** **§ SAFE DEVELOPMENT FOUNDATION** (pre–**STEP 1A** telemetry) **documented**; **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** spec: passive **`AS_TELEMETRY_V1`**, T0–T3) **documented**  
 **Governance checkpoint:** **2026-05-10** — **PHASE 20** baseline (`PHASE_20_STABLE_RUNTIME_BASELINE`) — see **`# PHASE 20 COMPLETE — GOVERNANCE_CONSCIOUSNESS_INTELLIGENCE_V1`**; **federation engineering track** (**attribution + strategic context + export federation**) **`STATUS: COMPLETE`** — see **`# GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1`**, **`# GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1`**, **`# GOVERNANCE_EXPORT_FEDERATION_V1`**, **`# COMPILE STABILIZATION STATUS`**.  
-**Last Updated:** May 11, 2026 — **Lot sizing / execution engineering** (**`LOT_SIZE_MAX_BASE`** cap scope, **`LOT_FIXED_PER_BALANCE`** + **`InpBalanceStep`** / **`InpBaseLotPerStep`**, **`ENUM_LOT_METHOD`** order + **preset migration** — see **ENGINEERING LOCK — Lot sizing & execution**); **CHECKPOINT 3.12** **Session Regime Continuity Forensics** (**TF+BO**, **Q65**, **TEST S4/S5** **WIT** **windows**) **logged**; **CHECKPOINT 4C** **weekday** **hardening** **forensics** **(W1–W3**, **TF+BO**, **Asia** **00→07** **WIT**, **Q65**); **CHECKPOINT 5.1 — TF+BO Quality Sensitivity Sweep** (**Q55/Q60/Q65**); **Phase 4.3** consec **post-fix**; **4.1** daily loss Mar **2025**; **4.4** position limit; **4.2** equity DD; **CHECKPOINT 3.10** complete; **§Test 3.1** spread lock; **§3.1** **462** / **§3.2** **398** / **§3.4** **479**; **§ ENGINEERING LOCK §E** — **FPB vs low trade count** **operational audit** (external **TF+BO** lab: time filter **ON**, **$500** deposit, step **500** / **0.01** — **~20** positions, **session/weekday** concentration — **rank `Reason=`** before blaming FPB formula); **§ SAFE DEVELOPMENT FOUNDATION** (**GATE-0** — backup / rollback / stable core); **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** — passive **`AS_TELEMETRY_V1`**, T0–T3, non-interference contract — before regime engine); **Governance federation stabilization** (**GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1** + **GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1** + **GOVERNANCE_EXPORT_FEDERATION_V1**) **roadmap-complete** **2026-05-10** (re-verify compile after each MT5 bump).
+**Last Updated:** May 11, 2026 — **Lot sizing / execution engineering** (**`LOT_SIZE_MAX_BASE`** cap scope, **`LOT_FIXED_PER_BALANCE`** + **`InpBalanceStep`** / **`InpBaseLotPerStep`**, **`ENUM_LOT_METHOD`** order + **preset migration** — see **ENGINEERING LOCK — Lot sizing & execution**); **CHECKPOINT 3.12** **Session Regime Continuity Forensics** (**TF+BO**, **Q65**, **TEST S4/S5** **WIT** **windows**) **logged**; **CHECKPOINT 4C** **weekday** **hardening** **forensics** **(W1–W3**, **TF+BO**, **Asia** **00→07** **WIT**, **Q65**); **CHECKPOINT 5.1 — TF+BO Quality Sensitivity Sweep** (**Q55/Q60/Q65**); **Phase 4.3** consec **post-fix**; **4.1** daily loss Mar **2025**; **4.4** position limit; **4.2** equity DD; **CHECKPOINT 3.10** complete; **§Test 3.1** spread lock; **§3.1** **462** / **§3.2** **398** / **§3.4** **479**; **§ ENGINEERING LOCK §E** — **FPB vs low trade count** **operational audit** (external **TF+BO** lab: time filter **ON**, **$500** deposit, step **500** / **0.01** — **~20** positions, **session/weekday** concentration — **rank `Reason=`** before blaming FPB formula); **§ SAFE DEVELOPMENT FOUNDATION** (**GATE-0** — backup / rollback / stable core); **# STEP 1A — TELEMETRY INFRASTRUCTURE** (**GATE-1** — passive **`AS_TELEMETRY_V1`**, T0–T3, non-interference contract — before regime engine); **Governance federation stabilization** (**GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1** + **GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1** + **GOVERNANCE_EXPORT_FEDERATION_V1**) **roadmap-complete** **2026-05-10** (re-verify compile after each MT5 bump). **Governance physiology track:** **PHASE 23.6 / 23.7 / 24 / 24A** **COMPLETE** — see **`# ERA 4 — GOVERNANCE LIFE-CYCLE INTELLIGENCE`**.
 
 **Addendum (2026-05-10 — telemetry-roadmap Phase 3B, join validation):** **GOLDEN FIXTURE SUITE V1 COMPLETE (2026-05-10)** — `Case_001_BasicJoin` through **`Case_010_TimezoneEdge_StaticOffset`** **PASS** deterministically (`Tests/TestTelemetryJoinValidation.mq5`); golden fixtures + **byte-identical** regression; backward-only **`MAX(bar_utc ≤ d_time_utc)`**; **`ORPHAN_DEAL`**; duplicate-candidate / duplicate-ticket / gap / future-leak guards; partial-close + position rollup annotations + multi-context attribution + UTC edge / static-offset **metadata** policy frozen in **`TelemetryAnalytics/PHASE_3B_GOLDEN_FIXTURE_VALIDATION.md`** (**§A1–A10**). **Milestone tag:** `PHASE_3B_GOLDEN_FIXTURE_SUITE_COMPLETE`.
 
@@ -15,6 +15,8 @@
 **Governance intelligence program (PHASES 8–20):** — **COMPLETE** (architecture + modules under `Experts/AurumSynapse/TelemetryAnalytics/Governance*`; deterministic harness **`Tests/TestGovernanceStateMachineV1.mq5`**; replay umbrella **`GovernanceReplayVisualIntelligenceV1.mqh`**; production join path append-only **`GOV_EXEC_V1`** via **`ProductionGovernanceOrchestrationJoinHookV1`**). **Checkpoint commit message:** `PHASE_20_GOVERNANCE_CONSCIOUSNESS_COMPLETE`. **Rollback tag:** `PHASE_20_STABLE_RUNTIME_BASELINE`.
 
 **Governance federation stabilization (post–PHASE 20 — engineering track, 2026-05-10):** **GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1**, **GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1**, and **GOVERNANCE_EXPORT_FEDERATION_V1** are **`STATUS: COMPLETE`** (deterministic attribution + `SGovStrategicContextV1` + export federation bundle under `TelemetryAnalytics/GovernanceExportFederationV1/`; see milestone sections and **# COMPILE STABILIZATION STATUS** below). **Era framing:** program position transitions **ERA 2 — Governance Observability** (replay / incident / meta / harness visibility) toward **ERA 3 — Governance Intelligence** (attribution, ecology, toxicity, compatibility analytics) with **early ERA 4 — Federated Governance** foundations (context routing, export bus, ABI guards, replay-determinism helpers).
+
+**Governance life-cycle physiology (post–federation track, 2026-05-10):** **PHASE 23.6** (risk lock intelligence), **PHASE 23.7** (adaptive thaw / anti-paralysis), **PHASE 24** (recovery continuation / adaptive reactivation intelligence), and **PHASE 24A** (governance mobility / controlled reactivation stabilization) are **`STATUS: COMPLETE`** as **observational, stabilization-oriented** telemetry wired in **`AurumSynapse.mq5`** after prior governance layers — see **`# GOVERNANCE RECOVERY INTELLIGENCE`** → **`# ERA 4 — GOVERNANCE LIFE-CYCLE INTELLIGENCE`** → **`# DYNAMIC CONSENSUS INTELLIGENCE`** below. **Program shift:** from **survival governance** toward **adaptive operational governance physiology** (measurable mobility / reactivation / restoration continuity **without** weakening `RiskManager` or DD hard stops).
 
 **Next (post–PHASE 20 baseline):** primary engineering focus remains **stability / survivability / orchestration / runtime validation** — **now extended** with **federated governance** surfaces (**context**, **deterministic export**, **attribution harness**) documented under **`# GOVERNANCE_*`** / **`# COMPILE STABILIZATION STATUS`** / **`# MASSIVE BACKTEST VALIDATION — 2022`** below. Adaptive **`AS_JOINED_V2`** / regime governor items remain **charter-gated** (**no** change to Golden Suite V1 regression law, **`expected_joined.csv`**, or **`AS_JOINED_V1`** unless separately chartered).
 
@@ -91,6 +93,8 @@
 | **ERA 2 — Governance Observability** | Replay, containment, policy load, shadow tick, evidence, UTF-8 harnesses | Phases **8–20** + replay umbrella |
 | **ERA 3 — Governance Intelligence** | Strategy attribution, toxicity, ecology, compatibility, deterministic exports | **GOVERNANCE_STRATEGY_ATTRIBUTION_INTELLIGENCE_V1** + export/schema layers |
 | **ERA 4 — Federated Governance (early)** | Context bag, routing, export federation bus, ABI/version guards, replay hash equality | **GOVERNANCE_STRATEGIC_CONTEXT_REFACTOR_V1** + **GOVERNANCE_EXPORT_FEDERATION_V1** |
+
+> **Roadmap note (post–PHASE 24A):** The table row **“ERA 4 — Federated Governance (early)”** remains the historical **export/context federation** anchor. The **governance physiology** charter uses the dedicated heading **`# ERA 4 — GOVERNANCE LIFE-CYCLE INTELLIGENCE`** below (lock → thaw → continuation → mobility). **Do not merge** the two meanings when reading tags or dossier schema bumps.
 
 ---
 
@@ -179,7 +183,158 @@
 - **ABI Stability Layer** — `GOV_EXPORT_ABI_VER_V1` / `GOV_EXPORT_MAGIC_V1`, `GOV_CTX_API_V1`, distinct export include guards.  
 - **Strategic Runtime Isolation** — strategic live/export symbols isolated from attribution (`GovStrategic*`).  
 - **Context Routing Infrastructure** — `GovCtxRouterV1_*` (build / link / inject / resolve).  
-- **Federated Governance Export Bus** — single bundle include + attribution `GovStratExpV1_Bundle(ctx, sum, out)` entry point.
+- **Federated Governance Export Bus** — single bundle include + attribution `GovStratExpV1_Bundle(ctx, sum, out)` entry point.  
+- **Risk Lock Intelligence (PHASE 23.6)** — `TelemetryAnalytics/RiskLockIntelligenceV1/` — lock lineage, thaw interruptions, floating pressure / DD class telemetry (**observe-only**).  
+- **Adaptive Thaw & Anti-Paralysis (PHASE 23.7)** — `TelemetryAnalytics/AdaptiveThawStabilizationV1/` — thaw scoring, lock decay, recovery momentum, paralysis / execution continuity (**observe-only**).  
+- **Recovery Continuation & Adaptive Reactivation (PHASE 24)** — `TelemetryAnalytics/GovernanceRecoveryContinuationV1/` — continuation, inertia, vitality, ecology reactivation, governance life-cycle (**observe-only**).  
+- **Governance Mobility & Controlled Reactivation (PHASE 24A)** — `TelemetryAnalytics/GovernanceMobilityV1/` — mobility, reactivation, suppression decay, strategy revival, participation continuity, anti-starvation, ecology / life restoration (**observe-only**; runs **after** PHASE 24 on each bar).
+
+---
+
+# GOVERNANCE RECOVERY INTELLIGENCE
+
+**Roadmap role:** anchor for **runtime governance recovery physiology** — dynamic recovery, restriction forensics, ecology participation, **risk lock / thaw cognition**, **continuation**, and **mobility** telemetry. Federation-era exports remain orthogonal (see **ERA** table note above).
+
+---
+
+# ERA 4 — GOVERNANCE LIFE-CYCLE INTELLIGENCE
+
+**Charter:** measure and narrate **how governance returns adaptive operational life** after survival stabilization — **without** auto-reactivation, **without** bypassing **`RiskManager`**, and **without** mutating DD thresholds.
+
+## Architectural evolution — four governance transitions
+
+The governance system is documented as evolving through **four** major transitions (telemetry-first; execution hardening unchanged unless separately chartered):
+
+1. **SURVIVAL GOVERNANCE** — DD protection, emergency defense, lock systems, freeze / halt protection.  
+2. **OBSERVABILITY GOVERNANCE** — telemetry, lock tracing, causal intelligence, ecology awareness, suppression visibility.  
+3. **RECOVERY PHYSIOLOGY GOVERNANCE** — thaw cognition, paralysis detection, vitality awareness, continuation intelligence, mobility telemetry, ecosystem restoration.  
+4. **FUTURE ADAPTIVE GOVERNANCE** (not started; gated) — controlled adaptive recovery, **PHASE 25 — Dynamic Consensus Intelligence**, ecology negotiation, autonomous survivability intelligence.
+
+---
+
+## CURRENT GOVERNANCE STATUS
+
+**Stage:** **LATE STAGE 1 — GOVERNANCE MOBILITY STABILIZATION**
+
+**Current strengths**
+
+- governance observability  
+- regime intelligence  
+- ecology intelligence  
+- paralysis detection  
+- thaw cognition  
+- vitality telemetry  
+- mobility telemetry  
+- restoration awareness  
+
+**Current bottlenecks**
+
+- participation continuity  
+- adaptive operational restoration  
+- suppression persistence  
+- ecology reactivation stability  
+- controlled adaptive recovery  
+
+**Critical insight:** The system **now survives successfully**, but **adaptive operational life restoration** remains **incomplete** — telemetry must prove sustained continuity **before** consensus dynamics are amplified.
+
+---
+
+### IMPORTANT — PHASE 24A CONTRACT
+
+**PHASE 24A does not:**
+
+- modify **`RiskManager`**  
+- auto-reactivate strategies  
+- bypass DD protection  
+- force execution  
+- enable autonomous recovery  
+
+**It remains:** **observational** · **stabilization-oriented** · **governance-supervised**
+
+---
+
+### PHASE 23.6 — RISK LOCK INTELLIGENCE STABILIZATION — **STATUS: COMPLETE**
+
+**Key achievements**
+
+- Lock lineage telemetry  
+- Thaw interruption analysis  
+- Floating pressure normalization  
+- DD structural classification  
+- Governance paralysis telemetry  
+- Starvation correlation  
+- Governance stress physiology  
+- Observational-only stabilization layer  
+
+**Git tag:** `PHASE_23_6_RISK_LOCK_INTELLIGENCE_STABILIZATION_COMPLETE`
+
+---
+
+### PHASE 23.7 — ADAPTIVE THAW & ANTI-PARALYSIS STABILIZATION — **STATUS: COMPLETE**
+
+**Key achievements**
+
+- Adaptive thaw scoring telemetry  
+- Lock decay intelligence  
+- Recovery momentum telemetry  
+- Contextual DD interpretation  
+- Anti-paralysis governance analysis  
+- Execution continuity telemetry  
+- Ecology recovery stabilization  
+- Governance nervous system modeling  
+
+**Git tag:** `PHASE_23_7_ADAPTIVE_THAW_ANTI_PARALYSIS_COMPLETE`
+
+---
+
+### PHASE 24 — RECOVERY CONTINUATION & ADAPTIVE REACTIVATION INTELLIGENCE — **STATUS: COMPLETE**
+
+**Key achievements**
+
+- Recovery continuation telemetry  
+- Activation inertia modeling  
+- Governance vitality awareness  
+- Ecology reactivation telemetry  
+- Recovery momentum half-life  
+- Adaptive life probability  
+- Governance life-cycle physiology  
+- Stable-but-dead governance detection  
+
+**Git tag:** `PHASE_24_RECOVERY_CONTINUATION_ADAPTIVE_REACTIVATION_INTELLIGENCE_COMPLETE`
+
+---
+
+### PHASE 24A — GOVERNANCE MOBILITY & CONTROLLED REACTIVATION STABILIZATION — **STATUS: COMPLETE**
+
+**Key achievements**
+
+- Governance mobility intelligence  
+- Controlled reactivation telemetry  
+- Suppression decay intelligence  
+- Selective strategy revival telemetry  
+- Participation continuity analytics  
+- Anti-starvation governance telemetry  
+- Ecology restoration telemetry  
+- Governance life restoration modeling  
+
+**Git tag:** `PHASE_24A_GOVERNANCE_MOBILITY_CONTROLLED_REACTIVATION_COMPLETE`
+
+---
+
+# DYNAMIC CONSENSUS INTELLIGENCE
+
+**PHASE 25 — Dynamic Consensus Intelligence** — **STATUS: NOT STARTED** (**charter- and telemetry-gated**).
+
+**Do not begin `PHASE 25 — Dynamic Consensus Intelligence` until telemetry demonstrates:**
+
+- sustained participation continuity  
+- reduced starvation persistence  
+- stable strategy revival  
+- healthy governance mobility  
+- adaptive vitality restoration  
+- stable ecology restoration  
+
+**Otherwise:** dynamic consensus may **amplify governance paralysis** rather than relieve it.
 
 ---
 

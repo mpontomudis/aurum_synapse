@@ -28,6 +28,7 @@
 #include "UI/Logger.mqh"
 #include "Core/TradeDiag.mqh"
 #include "TelemetryAnalytics/GovernanceRuntimeStrategyTaggingV1/GovernanceRuntimeStrategyTaggingV1.mqh"
+#include "TelemetryAnalytics/GovernanceSignalForensicsV1/GovernanceSignalForensicsV1.mqh"
 #ifdef AURUM_TELEMETRY_T1
 #include "Telemetry/TelemetryCollector.mqh"
 #endif
@@ -398,6 +399,7 @@ int OnInit() {
     GovRunTagIntV1_ModuleInit();
     GovRuntimeObsIntV1_ModuleInit();
     GovRuntimeVisualIntV1_ModuleInit();
+    GovSigForensicsV1_ModuleInit();
     GovRuntimeObsIntV1_Configure(InpGovRuntimeObsJournal, InpGovRuntimeObsFile, InpGovRuntimeObsFilePath,
                                  GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW);
     
@@ -624,6 +626,7 @@ void OnTick() {
             Print(msg);
         }
         if(!InpInvestigationSignalObservability) {
+            GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_RISK_HALT, true);
             UpdatePanel();
             break;
         }
@@ -637,6 +640,7 @@ void OnTick() {
         if(!h2Diag && g_totalTrades <= 3) {
             Print("[BLOCKED] Time Filter");
         }
+        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_TIME_FILTER, true);
         UpdatePanel();
         break;
     }
@@ -649,6 +653,7 @@ void OnTick() {
         if(!h2Diag && g_totalTrades <= 3) {
             PrintFormat("[BLOCKED] Spread too wide: %.1f > %d", spread, InpMaxSpreadPoints);
         }
+        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_SPREAD, true);
         UpdatePanel();
         break;
     }
@@ -658,11 +663,14 @@ void OnTick() {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_MARKET_UPDATE_FAIL);
         TradeDiag_Blocked("MarketUpdateFail", _Symbol, 0.0, diagOpenCount);
         Logger::Warning("[ERROR] MarketAnalyzer update failed");
+        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_MARKET_UPDATE_FAIL, true);
         break;
     }
     
     MarketState marketState = g_marketAnalyzer.GetState();
     Aurum_LogH2MarketStateIfChanged(marketState, currentBarTime);
+
+    GovSigForensicsV1_NotifyPipelineOpen(currentBarTime);
 
     // GOV_SHADOW_SAFE_POINT — pre-signal: regime / state available for lightweight shadow capture.
     
@@ -730,9 +738,12 @@ void OnTick() {
     
     //--- 8. Consensus / quality / execution gate
     if(consensus == SIGNAL_NONE) {
+        GovSigForensicsV1_OnConsensusResolvedNone(currentBarTime, marketState);
         Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_NO_CONSENSUS, SIGNAL_NONE, 0.0, buyVotes, sellVotes);
         TradeDiag_Blocked("NoConsensus", _Symbol, 0.0, diagOpenCount);
     } else {
+        GovSigForensicsV1_OnConsensusResolvedOk(currentBarTime, marketState, consensus, buyVotes, sellVotes);
+        const int domStrat = GovSigForensicsV1_DominantStratSlot8(signals[0], signals[1], signals[2], signals[3], signals[4], signals[5], signals[6], signals[7], consensus);
         double qualityScore = g_qualityFilter.CalculateSetupScore(marketState, consensus,
                                                                   consensusStrength, agreementPct);
 #ifdef AURUM_TELEMETRY_T1
@@ -745,6 +756,7 @@ void OnTick() {
         if(qualityScore < InpMinQualityScore) {
             Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_QUALITY_LOW, consensus, qualityScore, buyVotes, sellVotes);
             TradeDiag_Blocked("QualityScoreLow", _Symbol, 0.0, diagOpenCount);
+            GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, SIGNAL_REJECT_QUALITY_LOW, false);
         } else {
             ENUM_SIGNAL_REJECT_REASON reqFail = SIGNAL_REJECT_NONE;
             if(!CheckQualityRequirements(marketState, consensus, reqFail)) {
@@ -752,11 +764,13 @@ void OnTick() {
                 if(!h2Diag) {
                     PrintFormat("[BLOCKED] Quality requirements not met (%s)", Aurum_RejectReasonText(reqFail));
                 }
+                GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, reqFail, false);
             } else {
                 if(!execRiskAllows) {
                     // Phase 3D: consensus/quality path visible for research; no new orders while risk halt
                     Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_RISK_HALT, consensus, qualityScore, buyVotes, sellVotes);
                     TradeDiag_Blocked("RiskManager", _Symbol, 0.0, diagOpenCount);
+                    GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, SIGNAL_REJECT_RISK_HALT, false);
                 } else {
                     ENUM_SIGNAL_REJECT_REASON posFail = SIGNAL_REJECT_NONE;
                     if(!CanOpenNewPosition(posFail)) {
@@ -767,11 +781,13 @@ void OnTick() {
                             else
                                 Print("[BLOCKED] Max consecutive losses reached");
                         }
+                        GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, posFail, false);
                     } else {
                         if(!h2Diag) {
                             Print("[TRADE] *** EXECUTING TRADE ***");
                         }
                         // GOV_RUNTIME_INJECTION_CANDIDATE — pre-order shadow snapshot hook (must never block native path).
+                        GovSigForensicsV1_RecordAccepted(currentBarTime, marketState, domStrat, consensus, (int)qualityScore);
                         ExecuteTrade(consensus, marketState, qualityScore, signals);
                     }
                 }
@@ -1222,7 +1238,9 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
         g_totalTrades++;
         g_riskManager.OnTradeOpened(lot);
         GovRunTagIntV1_OnTradeOpen(_Symbol, ticket, signal, gov_rtag_signals, state.regime, state.session, state.atrRatio, qualityScore);
-        
+        GovSigForensicsV1_RecordExecuted((datetime)TimeCurrent(), state,
+                                       GovSigForensicsV1_DominantStratSlot8(gov_rtag_signals[0], gov_rtag_signals[1], gov_rtag_signals[2], gov_rtag_signals[3], gov_rtag_signals[4], gov_rtag_signals[5], gov_rtag_signals[6], gov_rtag_signals[7], signal), signal, (int)qualityScore);
+
         Logger::LogTrade(ticket, "OPEN_" + EnumToString(signal), lot, price, sl, tp, (int)qualityScore);
         Logger::Info("Trade #" + IntegerToString(g_totalTrades) + " opened successfully");
     } else {

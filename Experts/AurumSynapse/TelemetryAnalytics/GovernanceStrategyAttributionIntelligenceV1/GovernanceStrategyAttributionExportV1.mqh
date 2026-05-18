@@ -7,22 +7,14 @@
 #define __AURUM_GOV_STRAT_ATTR_EXP_V1_MQH__
 
 #include "GovernanceStrategyTradeTaggerV1.mqh"
+#include "../GovernanceStrategyVocabularyV1.mqh"
 #include "../GovernanceExportFederationV1/GovernanceExportFederationContractsV1.mqh"
 #include "../GovernanceExportFederationV1/GovernanceExportSchemaRegistryV1.mqh"
 #include "../GovernanceStrategicContextRefactorV1/GovernanceStrategicContextV1.mqh"
 
 inline string GovStratExpV1_StratLabel(const int strat)
 {
-   switch(GovClampInt32(strat, 0, 7)) {
-   case GOV_STRAT_TF: return "TrendFollowing";
-   case GOV_STRAT_BO: return "Breakout";
-   case GOV_STRAT_MR: return "MeanReversion";
-   case GOV_STRAT_SD: return "StructuralDrift";
-   case GOV_STRAT_SM: return "SessionMomentum";
-   case GOV_STRAT_PA: return "PriceAction";
-   case GOV_STRAT_GR: return "GridRecovery";
-   default: return "MetaStack";
-   }
+   return GovStrategyV1_NameFromAxisIndex(strat);
 }
 
 inline string GovStratExpV1_CsvHeader(void)

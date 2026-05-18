@@ -6,6 +6,7 @@
 #define __AURUM_GOV_RUNTIME_STRAT_CLASS_V1_MQH__
 
 #include "../GovernanceStrategyAttributionIntelligenceV1/GovernanceStrategyAttributionDatasetV1.mqh"
+#include "../GovernanceStrategyVocabularyV1.mqh"
 #include "../../Core/Constants.mqh"
 
 enum ENUM_GOV_RTAG_EXECUTION_TYPE_V1
@@ -18,11 +19,16 @@ enum ENUM_GOV_RTAG_EXECUTION_TYPE_V1
 };
 
 //+------------------------------------------------------------------+
-//| Strategy axis — StrategyManager index 0..7 → attribution enum.   |
+//| Strategy axis — StrategyManager index 0..7 → ENUM_GOV_STRATEGY_ID|
 //+------------------------------------------------------------------+
+inline ENUM_GOV_STRATEGY_ID GovRunTagV1_ClassifyStrategyId(const int strategy_index_0_7)
+{
+   return (ENUM_GOV_STRATEGY_ID)GovClampInt32(strategy_index_0_7, 0, GOV_SATTR_STRAT_COUNT_V1 - 1);
+}
+
 inline int GovRunTagV1_ClassifyStrategy(const int strategy_index_0_7)
 {
-   return GovClampInt32(strategy_index_0_7, 0, GOV_SATTR_STRAT_COUNT_V1 - 1);
+   return (int)GovRunTagV1_ClassifyStrategyId(strategy_index_0_7);
 }
 
 //+------------------------------------------------------------------+

@@ -36,6 +36,7 @@
 #include "TelemetryAnalytics/RiskLockIntelligenceV1/RiskLockIntelligenceIntegrationV1.mqh"
 #include "TelemetryAnalytics/AdaptiveThawStabilizationV1/AdaptiveThawStabilizationIntegrationV1.mqh"
 #include "TelemetryAnalytics/GovernanceRecoveryContinuationV1/GovernanceRecoveryContinuationIntegrationV1.mqh"
+#include "TelemetryAnalytics/GovernanceMobilityV1/GovernanceMobilityIntegrationV1.mqh"
 #ifdef AURUM_TELEMETRY_T1
 #include "Telemetry/TelemetryCollector.mqh"
 #endif
@@ -143,6 +144,7 @@ input bool InpGovPhase235RestrictionForensics = true;       // Phase 23.5: restr
 input bool InpGovPhase236RiskLockIntel = true;             // Phase 23.6: risk lock / thaw intelligence (observe-only; no safety weakening)
 input bool InpGovPhase237AdaptiveThawStabilization = true; // Phase 23.7: adaptive thaw / anti-paralysis telemetry (observe-only; no auto-thaw)
 input bool InpGovPhase24RecoveryContinuationIntel = true;  // Phase 24: recovery continuation & reactivation intelligence (observe-only; no unlock)
+input bool InpGovPhase24aGovernanceMobilityIntel = true;   // Phase 24A: governance mobility & controlled reactivation stabilization (observe-only)
 
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
@@ -370,6 +372,7 @@ string Aurum_FmtDossierInputSnapshotV1(void) {
     o += "InpGovPhase236RiskLockIntel=" + IntegerToString((int)InpGovPhase236RiskLockIntel) + "\n";
     o += "InpGovPhase237AdaptiveThawStabilization=" + IntegerToString((int)InpGovPhase237AdaptiveThawStabilization) + "\n";
     o += "InpGovPhase24RecoveryContinuationIntel=" + IntegerToString((int)InpGovPhase24RecoveryContinuationIntel) + "\n";
+    o += "InpGovPhase24aGovernanceMobilityIntel=" + IntegerToString((int)InpGovPhase24aGovernanceMobilityIntel) + "\n";
     return o;
 }
 
@@ -508,6 +511,8 @@ int OnInit() {
     GovAtsIntV1_Configure(InpGovPhase237AdaptiveThawStabilization);
     GovRciIntV1_ModuleInit();
     GovRciIntV1_Configure(InpGovPhase24RecoveryContinuationIntel);
+    GovGmbIntV1_ModuleInit();
+    GovGmbIntV1_Configure(InpGovPhase24aGovernanceMobilityIntel);
     Logger::Info("RiskManager initialized - Circuit breakers active");
     
     //--- Create and initialize Trade Manager
@@ -588,6 +593,7 @@ void OnDeinit(const int reason) {
     GovRliIntV1_FlushPersistence();
     GovAtsIntV1_FlushPersistence();
     GovRciIntV1_FlushPersistence();
+    GovGmbIntV1_FlushPersistence();
     GovEcolIntV1_FlushPersistence();
     if(InpGovVisualHtmlExport && MQLInfoInteger(MQL_TESTER) == 0) {
         Aurum_FillDossierColdSnapshotV1();
@@ -921,6 +927,7 @@ void OnTick() {
     GovAtsIntV1_OnBar(s_rli_bar_seq_v1, g_riskManager.GetEquityDD(), AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
                      gov_reg_spread_pts, marketState.atrRatio, execRiskAllows);
     GovRciIntV1_OnBar(s_rli_bar_seq_v1, g_riskManager.GetEquityDD(), execRiskAllows);
+    GovGmbIntV1_OnBar(execRiskAllows);
 
     // GOV_COLD_PATH_ONLY — ring-buffer / replay-append / forensic export must drain here or in OnTimer, not above.
     
@@ -1480,6 +1487,8 @@ void LogConfiguration() {
     Logger::Info("GridRecovery: " + (InpUseGridRecovery ? "YES" : "NO"));
     Logger::Info("MomentumScalp: " + (InpUseMomentumScalp ? "YES" : "NO"));
     Logger::Info("H2 Jul-Dec diagnostic PrintFormat: " + (InpDiagH2JulDec ? "ON" : "OFF"));
+    Logger::Info("Governance Phase 24 RCI: " + (InpGovPhase24RecoveryContinuationIntel ? "ON" : "OFF"));
+    Logger::Info("Governance Phase 24A mobility: " + (InpGovPhase24aGovernanceMobilityIntel ? "ON" : "OFF"));
     Logger::Info("--- CONFIGURATION END ---");
 }
 
@@ -1513,6 +1522,7 @@ double OnTester() {
     GovRliIntV1_FlushPersistence();
     GovAtsIntV1_FlushPersistence();
     GovRciIntV1_FlushPersistence();
+    GovGmbIntV1_FlushPersistence();
     GovEcolIntV1_FlushPersistence();
     return 0.0;
 }

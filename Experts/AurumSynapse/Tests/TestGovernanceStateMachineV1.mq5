@@ -19,6 +19,7 @@
 #include "../TelemetryAnalytics/RiskLockIntelligenceV1/RiskLockIntelligenceIntegrationV1.mqh"
 #include "../TelemetryAnalytics/AdaptiveThawStabilizationV1/AdaptiveThawStabilizationIntegrationV1.mqh"
 #include "../TelemetryAnalytics/GovernanceRecoveryContinuationV1/GovernanceRecoveryContinuationIntegrationV1.mqh"
+#include "../TelemetryAnalytics/GovernanceMobilityV1/GovernanceMobilityIntegrationV1.mqh"
 
 SGovCmpRunRecordV1 g_gov_test_cmp_baseline_row_v1;
 
@@ -5425,6 +5426,72 @@ bool GovTest_Phase24RecoveryContinuationIntelV1(void) {
     return true;
 }
 
+bool GovTest_Phase24aGovernanceMobilityV1(void) {
+    if(GovGmbEngV1_ClassifyMobility(100.0) != (int)GOV_GMB_MOB_IMMOBILE_V1)
+        return Fail("gmb24a_mob0");
+    if(GovGmbEngV1_ClassifyMobility(300.0) != (int)GOV_GMB_MOB_PARTIAL_V1)
+        return Fail("gmb24a_mob1");
+    if(GovGmbEngV1_ClassifyReactivation(150.0, 100.0) != (int)GOV_GMB_REAC_DORMANT_V1)
+        return Fail("gmb24a_reac0");
+    if(GovGmbEngV1_ClassifyReactivation(400.0, 800.0) != (int)GOV_GMB_REAC_FRAGILE_V1)
+        return Fail("gmb24a_reac_frag");
+    if(GovGmbEngV1_ClassifySuppDecay(10.0, 600.0, 100.0) != (int)GOV_GMB_SUPP_PERSISTENT_V1)
+        return Fail("gmb24a_supp");
+    if(GovGmbEngV1_ClassifyStratRevival(100, 50UL, 100) != (int)GOV_GMB_SR_DORMANT_V1)
+        return Fail("gmb24a_sr");
+    if(GovGmbEngV1_ClassifyStratRevival(700, 5UL, 800) != (int)GOV_GMB_SR_TOXIC_V1)
+        return Fail("gmb24a_sr_tox");
+    if(GovGmbEngV1_ClassifyParticipation(500.0, 400.0, 5UL) != (int)GOV_GMB_PC_STABILIZING_V1)
+        return Fail("gmb24a_pc");
+    if(GovGmbEngV1_ClassifyVitalityV2(500.0, 500.0, true, false) != (int)GOV_GMB_V2_OPERATIONAL_V1)
+        return Fail("gmb24a_v2");
+    if(GovGmbEngV1_ClassifyVitalityV2(100.0, 100.0, true, true) != (int)GOV_GMB_V2_SURVIVING_V1)
+        return Fail("gmb24a_v2_lock");
+    if(GovGmbEngV1_ClassifyAntiStarve(400.0, 500.0) != (int)GOV_GMB_AS_ELEVATED_V1)
+        return Fail("gmb24a_as");
+    GovRciIntV1_ModuleInit();
+    GovRciIntV1_Configure(true);
+    GovRliIntV1_ModuleInit();
+    GovRliIntV1_Configure(true);
+    GovRfIntV1_ModuleInit();
+    GovRfIntV1_Configure(true);
+    GovEcolIntV1_ModuleInit();
+    GovEcolIntV1_Configure(true);
+    GovAtsIntV1_ModuleInit();
+    GovAtsIntV1_Configure(true);
+    GovGmbIntV1_ModuleInit();
+    GovGmbIntV1_Configure(true);
+    GovRliEngV1_OnBarEndStoreEco(g_gov_rli_v1, 1);
+    const datetime ts1 = (datetime)1850000000;
+    GovRliIntV1_OnBarPostCanTrade(ts1, 1UL, true, (int)AS_CT_DENY_NONE, (int)HALT_NONE, 0, 3.0, 10000.0, 9980.0, 18.0, 1.0, 2, 30, false, true);
+    g_gov_ecology_v1.ecology_diversity_score_pm = 420;
+    g_gov_ecology_v1.ecology_entropy_score_pm = 400;
+    g_gov_ats_v1.last_thaw_confidence_pm = 600.0;
+    g_gov_ats_v1.last_recovery_momentum_pm = 480.0;
+    g_gov_ats_v1.last_exec_continuity_pm = 450.0;
+    g_gov_ats_v1.last_paralysis_index_pm = 220.0;
+    g_gov_ats_v1.prev_eq_dd = 3.2;
+    GovAtsIntV1_OnBar(1UL, 3.0, 10000.0, 9980.0, 18.0, 1.0, true);
+    GovRciIntV1_OnBar(1UL, 3.0, true);
+    GovGmbIntV1_OnBar(true);
+    if(g_gov_gmb_v1.bars_observed != 1UL)
+        return Fail("gmb24a_bars");
+    if(g_gov_gmb_v1.mobility_hist[g_gov_gmb_v1.mobility_class] < 1UL)
+        return Fail("gmb24a_mob_hist");
+    GovGmbIntV1_FlushPersistence();
+    const int hf = FileOpen("AurumSynapse\\TelemetryAnalytics\\GovernanceMobility\\governance_mobility.csv", FILE_READ | FILE_CSV | FILE_ANSI);
+    if(hf == INVALID_HANDLE)
+        return Fail("gmb24a_csv");
+    FileClose(hf);
+    GovGmbIntV1_Configure(false);
+    GovRciIntV1_Configure(false);
+    GovAtsIntV1_Configure(false);
+    GovRliIntV1_Configure(false);
+    GovRfIntV1_Configure(false);
+    GovEcolIntV1_Configure(false);
+    return true;
+}
+
 int OnInit() {
     GovCmpDsV1_Init(g_gov_test_cmp_baseline_row_v1);
     if(!T_Evidence_FusionDeterminism())
@@ -5974,6 +6041,8 @@ int OnInit() {
     if(!GovTest_Phase237AdaptiveThawStabilizationV1())
         return INIT_FAILED;
     if(!GovTest_Phase24RecoveryContinuationIntelV1())
+        return INIT_FAILED;
+    if(!GovTest_Phase24aGovernanceMobilityV1())
         return INIT_FAILED;
 
     Print("[GOV_SM_V1_TEST] STATUS=PASS suite=governance_kernel_v1");

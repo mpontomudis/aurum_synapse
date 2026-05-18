@@ -14,6 +14,7 @@
 #include "../TelemetryAnalytics/GovernanceRuntimeStrategyTaggingV1/GovernanceRuntimeStrategyTaggingV1.mqh"
 #include "../TelemetryAnalytics/GovernanceSignalForensicsV1/GovernanceSignalForensicsV1.mqh"
 #include "../TelemetryAnalytics/GovernanceRegimeEngineV1/GovernanceRegimeIntegrationV1.mqh"
+#include "../TelemetryAnalytics/GovernanceEcologyEngineV1/GovernanceEcologyIntegrationV1.mqh"
 
 SGovCmpRunRecordV1 g_gov_test_cmp_baseline_row_v1;
 
@@ -5250,6 +5251,36 @@ bool GovTest_RunTagExport(void) {
     return T_RTAG_Export();
 }
 
+bool GovTest_Phase23EcologyV1(void) {
+    GovEcolIntV1_ModuleInit();
+    GovEcolIntV1_Configure(true);
+    g_gov_regime_store_v1.current_regime = AURUM_REGIME_VOLATILITY_EXPANSION;
+    MarketState ms;
+    ZeroMemory(ms);
+    ms.regime = REGIME_VOLATILE;
+    ms.session = SESSION_LONDON;
+    ms.atrRatio = 1.45;
+    SignalResult sig[8];
+    for(int i = 0; i < 8; i++) {
+        sig[i].signal = SIGNAL_NONE;
+        sig[i].strength = 0.0;
+        sig[i].weight = 1.0;
+    }
+    sig[2].signal = SIGNAL_BUY;
+    sig[2].strength = 0.9;
+    sig[0].signal = SIGNAL_BUY;
+    sig[0].strength = 0.5;
+    GovEcolIntV1_OnBarSignals(TimeCurrent(), ms, sig);
+    if(sig[2].signal != SIGNAL_NONE)
+        return Fail("eco23_mr_disabled_expansion");
+    if(sig[0].signal == SIGNAL_NONE)
+        return Fail("eco23_tf_should_participate");
+    if(g_gov_ecology_v1.cooccur[0][2] < 1UL)
+        return Fail("eco23_cooccur");
+    GovEcolIntV1_Configure(false);
+    return true;
+}
+
 int OnInit() {
     GovCmpDsV1_Init(g_gov_test_cmp_baseline_row_v1);
     if(!T_Evidence_FusionDeterminism())
@@ -5789,6 +5820,8 @@ int OnInit() {
     if(!T_SIG_FORENSICS_Html())
         return INIT_FAILED;
     if(!GovTestHarnessV1_ReplayLoopShell(6))
+        return INIT_FAILED;
+    if(!GovTest_Phase23EcologyV1())
         return INIT_FAILED;
 
     Print("[GOV_SM_V1_TEST] STATUS=PASS suite=governance_kernel_v1");

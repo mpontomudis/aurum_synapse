@@ -29,6 +29,11 @@ struct SGovCmpRunRecordV1
    int      recovery_cascades;
    string   regime_pf_compact;
    string   vol_pf_compact;
+   int      eco_diversity_pm;
+   int      eco_entropy_pm;
+   int      eco_balance_pm;
+   int      eco_dom_slot;
+   int      eco_dom_frac_x1000;
 };
 
 inline void GovCmpDsV1_Init(SGovCmpRunRecordV1 &r)
@@ -53,6 +58,11 @@ inline void GovCmpDsV1_Init(SGovCmpRunRecordV1 &r)
    r.recovery_cascades = 0;
    r.regime_pf_compact = "";
    r.vol_pf_compact = "";
+   r.eco_diversity_pm = 0;
+   r.eco_entropy_pm = 0;
+   r.eco_balance_pm = 0;
+   r.eco_dom_slot = 0;
+   r.eco_dom_frac_x1000 = 0;
 }
 
 #endif // __AURUM_GOV_CMP_DATASET_V1_MQH__

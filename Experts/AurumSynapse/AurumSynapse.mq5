@@ -30,6 +30,8 @@
 #include "TelemetryAnalytics/GovernanceRuntimeStrategyTaggingV1/GovernanceRuntimeStrategyTaggingV1.mqh"
 #include "TelemetryAnalytics/GovernanceSignalForensicsV1/GovernanceSignalForensicsV1.mqh"
 #include "TelemetryAnalytics/GovernanceRegimeEngineV1/GovernanceRegimeIntegrationV1.mqh"
+#include "TelemetryAnalytics/GovernanceDynamicRecoveryEngineV1/GovernanceDynamicRecoveryEngineV1.mqh"
+#include "TelemetryAnalytics/GovernanceEcologyEngineV1/GovernanceEcologyIntegrationV1.mqh"
 #ifdef AURUM_TELEMETRY_T1
 #include "Telemetry/TelemetryCollector.mqh"
 #endif
@@ -131,6 +133,8 @@ input int InpGovDossierBuildNumber = 0;                       // Optional CI bui
 input bool InpGovDossierCompareExport = false;                // Also write *_governance_report_compare.html stub
 input bool InpGovRegimeCsvAppend = false;                     // Append regime telemetry rows to CSV (tester / explicit)
 input bool InpGovPhase22aRegimeCalibration = true;            // Phase 22A: regime-aware min consensus / min quality (telemetry governance only)
+input bool InpGovDynRecoveryEnable = true;                    // Phase 22B: adaptive DD recovery (cooldown shave + staged caps; never bypasses hard DD)
+input bool InpGovPhase23EcologyEnable = true;                // Phase 23: adaptive strategy ecology (participation governance; no auto-optimize)
 
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
@@ -349,6 +353,10 @@ string Aurum_FmtDossierInputSnapshotV1(void) {
     o += "InpGovDossierGitCommit=" + InpGovDossierGitCommit + "\n";
     o += "InpGovDossierBuildNumber=" + IntegerToString(InpGovDossierBuildNumber) + "\n";
     o += "InpGovDossierCompareExport=" + IntegerToString((int)InpGovDossierCompareExport) + "\n";
+    o += "InpGovRegimeCsvAppend=" + IntegerToString((int)InpGovRegimeCsvAppend) + "\n";
+    o += "InpGovPhase22aRegimeCalibration=" + IntegerToString((int)InpGovPhase22aRegimeCalibration) + "\n";
+    o += "InpGovDynRecoveryEnable=" + IntegerToString((int)InpGovDynRecoveryEnable) + "\n";
+    o += "InpGovPhase23EcologyEnable=" + IntegerToString((int)InpGovPhase23EcologyEnable) + "\n";
     return o;
 }
 
@@ -476,6 +484,9 @@ int OnInit() {
     }
     //--- Must match Inputs tab: Init() alone used Constants.mqh (e.g. consec=3) — caused misleading backtests vs UI
     g_riskManager.SetRiskLimitsFromInputs(InpMaxEquityDD, InpMaxConsecutiveLosses, InpMaxDailyLossPct);
+    GovDynRecV1_Configure(InpGovDynRecoveryEnable, InpMaxEquityDD);
+    GovEcolIntV1_ModuleInit();
+    GovEcolIntV1_Configure(InpGovPhase23EcologyEnable);
     Logger::Info("RiskManager initialized - Circuit breakers active");
     
     //--- Create and initialize Trade Manager
@@ -552,6 +563,7 @@ void OnDeinit(const int reason) {
     TelemetryT2_Deinit();
 #endif
     GovRuntimeObsIntV1_EmitEndOfRun(_Symbol, reason);
+    GovEcolIntV1_FlushPersistence();
     if(InpGovVisualHtmlExport && MQLInfoInteger(MQL_TESTER) == 0) {
         Aurum_FillDossierColdSnapshotV1();
         GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, _Period, InpGovVisualSidecars, InpGovDossierCompareExport);
@@ -638,6 +650,15 @@ void OnTick() {
     GovRegimeIntV1_ApplyLegacyOverlay(marketState);
     Aurum_LogH2MarketStateIfChanged(marketState, currentBarTime);
 
+    g_riskManager.RefreshDrawdownSnapshot();
+    GovDynRecV1_OnBar(currentBarTime, g_riskManager.GetEquityDD(), g_riskManager.IsHalted(), g_riskManager.IsHaltedDrawdown(),
+                      GovRegimeDsV1_RegimeSlot(g_gov_regime_store_v1.current_regime),
+                      GovRegimeDsV1_RegimeSlot(g_gov_regime_store_v1.prev_regime),
+                      g_riskManager.GetConsecutiveWins());
+    const int gov_dd_shave_sec = GovDynRecV1_PopCooldownShaveSeconds();
+    if(gov_dd_shave_sec > 0)
+        g_riskManager.ApplyCooldownDecaySeconds(gov_dd_shave_sec);
+
     //--- 2. Risk authorization (execution) — observability may continue in Phase 3D lab mode
     const bool execRiskAllows = g_riskManager.CanTrade();
     // GOV_RUNTIME_INJECTION_CANDIDATE — align native CanTrade() with shadow execution_allowed (observe-only v1).
@@ -704,6 +725,10 @@ void OnTick() {
     if(!InpUsePriceAction)      { signals[5].signal = SIGNAL_NONE; signals[5].strength = 0.0; }
     if(!InpUseGridRecovery)     { signals[6].signal = SIGNAL_NONE; signals[6].strength = 0.0; }
     if(!InpUseMomentumScalp)    { signals[7].signal = SIGNAL_NONE; signals[7].strength = 0.0; }
+    
+    GovDynRecV1_ApplyStrategyPreservation(signals);
+    GovRegimeIntV1_OnStrategySignalCooccurrence(signals);
+    GovEcolIntV1_OnBarSignals(currentBarTime, marketState, signals);
     
     int activeCount = g_strategyManager.GetActiveStrategyCount();
     
@@ -1050,8 +1075,9 @@ bool CanOpenNewPosition(ENUM_SIGNAL_REJECT_REASON &rejectOut) {
     rejectOut = SIGNAL_REJECT_NONE;
     //--- Check max open positions
     int openCount = g_tradeManager.CountOpenPositions();
-    if(openCount >= InpMaxOpenPositions) {
-        Logger::Warning("Max open positions reached: " + IntegerToString(openCount));
+    const int effMaxOpen = GovDynRecV1_EffectiveMaxOpenPositions(InpMaxOpenPositions);
+    if(openCount >= effMaxOpen) {
+        Logger::Warning("Max open positions reached: " + IntegerToString(openCount) + " (eff cap " + IntegerToString(effMaxOpen) + ")");
         rejectOut = SIGNAL_REJECT_MAX_POSITIONS;
         TradeDiag_Blocked("MaxOpenPositions", _Symbol, 0.0, openCount);
         return false;
@@ -1087,10 +1113,15 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
     Print("======== EXECUTING TRADE ========");
     Print("Signal: ", EnumToString(signal), " | Quality: ", qualityScore);
     
+    const int dynRiskPm = GovDynRecV1_RiskScalePermille();
+    double effRiskPct = InpRiskPercent * (double)dynRiskPm / 1000.0;
+    if(effRiskPct < 0.05)
+        effRiskPct = 0.05;
+    
     //--- Calculate lot size
     double lot = g_moneyManager.CalculateLotSize(
         InpLotMethod,
-        InpRiskPercent,
+        effRiskPct,
         InpFixedLot,
         InpBalanceStep,
         InpBaseLotPerStep,
@@ -1402,6 +1433,7 @@ double OnTester() {
         Aurum_FillDossierColdSnapshotV1();
         GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, _Period, InpGovVisualSidecars, InpGovDossierCompareExport);
     }
+    GovEcolIntV1_FlushPersistence();
     return 0.0;
 }
 

@@ -13,6 +13,7 @@
 #include "../GovernancePositionLineageIntelligenceV1/GovernancePositionLineageRegistryV1.mqh"
 #include "../GovernancePositionLineageIntelligenceV1/GovernanceRecoveryChainAnalyticsV1.mqh"
 #include "../GovernanceRuntimeVisualObservabilityV1/GovernanceBacktestInputSnapshotV1.mqh"
+#include "../GovernanceEcologyEngineV1/GovernanceEcologyExportV1.mqh"
 
 inline void GovCmpStoreV1_EnsureDirs(void)
 {
@@ -94,11 +95,12 @@ inline void GovCmpStoreV1_FillCurrent(const string run_ts,
    out.recovery_cascades = casc;
    out.regime_pf_compact = GovCmpStoreV1_RegimePfCompact(sum);
    out.vol_pf_compact = GovCmpStoreV1_VolPfCompact(sum);
+   GovEcoExpV1_FillCmpRecord(out);
 }
 
 inline string GovCmpStoreV1_CsvHeader(void)
 {
-   return "run_ts,sym,tf,git,build,dep_cents,lev,sbits,pf,ddb,dde,wr1k,maxtox,trades,lroots,lchild,casc,rpf,vpf\n";
+   return "run_ts,sym,tf,git,build,dep_cents,lev,sbits,pf,ddb,dde,wr1k,maxtox,trades,lroots,lchild,casc,rpf,vpf,eco_div,eco_ent,eco_bal,eco_dom_slot,eco_dom_frac1k\n";
 }
 
 inline string GovCmpStoreV1_CsvLine(const SGovCmpRunRecordV1 &r)
@@ -107,7 +109,8 @@ inline string GovCmpStoreV1_CsvLine(const SGovCmpRunRecordV1 &r)
           IntegerToString(r.leverage) + "," + IntegerToString(r.strat_bits) + "," + DoubleToString(r.pf, 6) + "," + DoubleToString(r.dd_bal_pct, 4) + "," +
           DoubleToString(r.dd_eq_pct, 4) + "," + IntegerToString(r.winrate_x1000) + "," + IntegerToString(r.max_tox) + "," + IntegerToString(r.trades) + "," +
           IntegerToString(r.lineage_roots) + "," + IntegerToString(r.lineage_children) + "," + IntegerToString(r.recovery_cascades) + "," + r.regime_pf_compact + "," +
-          r.vol_pf_compact + "\n";
+          r.vol_pf_compact + "," + IntegerToString(r.eco_diversity_pm) + "," + IntegerToString(r.eco_entropy_pm) + "," + IntegerToString(r.eco_balance_pm) + "," +
+          IntegerToString(r.eco_dom_slot) + "," + IntegerToString(r.eco_dom_frac_x1000) + "\n";
 }
 
 inline bool GovCmpStoreV1_ParseLine(const string line, SGovCmpRunRecordV1 &r)
@@ -115,7 +118,7 @@ inline bool GovCmpStoreV1_ParseLine(const string line, SGovCmpRunRecordV1 &r)
    GovCmpDsV1_Init(r);
    string p[];
    const int n = StringSplit(line, ',', p);
-   if(n < 18)
+   if(n < 19)
       return false;
    r.run_ts = p[0];
    r.sym = p[1];
@@ -137,6 +140,13 @@ inline bool GovCmpStoreV1_ParseLine(const string line, SGovCmpRunRecordV1 &r)
    r.regime_pf_compact = p[17];
    if(n > 18)
       r.vol_pf_compact = p[18];
+   if(n >= 24) {
+      r.eco_diversity_pm = (int)StringToInteger(p[19]);
+      r.eco_entropy_pm = (int)StringToInteger(p[20]);
+      r.eco_balance_pm = (int)StringToInteger(p[21]);
+      r.eco_dom_slot = (int)StringToInteger(p[22]);
+      r.eco_dom_frac_x1000 = (int)StringToInteger(p[23]);
+   }
    r.valid = 1;
    return true;
 }
@@ -190,7 +200,10 @@ inline bool GovCmpStoreV1_Append(const SGovCmpRunRecordV1 &r)
    if(hj != INVALID_HANDLE) {
       FileSeek(hj, 0, SEEK_END);
       string j = "{\"run_ts\":\"" + r.run_ts + "\",\"sym\":\"" + r.sym + "\",\"tf\":\"" + r.tf + "\",\"pf\":" + DoubleToString(r.pf, 6) + ",\"dd_bal\":" +
-                 DoubleToString(r.dd_bal_pct, 4) + ",\"max_tox\":" + IntegerToString(r.max_tox) + ",\"trades\":" + IntegerToString(r.trades) + "}\n";
+                 DoubleToString(r.dd_bal_pct, 4) + ",\"max_tox\":" + IntegerToString(r.max_tox) + ",\"trades\":" + IntegerToString(r.trades) +
+                 ",\"eco_div\":" + IntegerToString(r.eco_diversity_pm) + ",\"eco_ent\":" + IntegerToString(r.eco_entropy_pm) + ",\"eco_bal\":" +
+                 IntegerToString(r.eco_balance_pm) + ",\"eco_dom_slot\":" + IntegerToString(r.eco_dom_slot) + ",\"eco_dom_frac1k\":" +
+                 IntegerToString(r.eco_dom_frac_x1000) + "}\n";
       FileWriteString(hj, j);
       FileClose(hj);
    }

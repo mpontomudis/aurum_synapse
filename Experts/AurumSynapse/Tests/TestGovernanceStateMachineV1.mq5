@@ -16,6 +16,7 @@
 #include "../TelemetryAnalytics/GovernanceRegimeEngineV1/GovernanceRegimeIntegrationV1.mqh"
 #include "../TelemetryAnalytics/GovernanceEcologyEngineV1/GovernanceEcologyIntegrationV1.mqh"
 #include "../TelemetryAnalytics/GovernanceRestrictionForensicsV1/GovernanceRestrictionForensicsIntegrationV1.mqh"
+#include "../TelemetryAnalytics/RiskLockIntelligenceV1/RiskLockIntelligenceIntegrationV1.mqh"
 
 SGovCmpRunRecordV1 g_gov_test_cmp_baseline_row_v1;
 
@@ -5313,6 +5314,34 @@ bool GovTest_Phase235RestrictionForensicsV1(void) {
     return true;
 }
 
+bool GovTest_Phase236RiskLockIntelV1(void) {
+    GovRliIntV1_ModuleInit();
+    GovRliIntV1_Configure(true);
+    GovRliEngV1_OnBarEndStoreEco(g_gov_rli_v1, 5);
+    const datetime ts0 = (datetime)1700000000;
+    GovRliIntV1_OnBarPostCanTrade(ts0, 1UL, false, (int)AS_CT_DENY_DD_LOCK, (int)HALT_DRAWDOWN, 2, 15.0, 10000.0, 9100.0, 25.0, 1.1, 2, 30, false, true);
+    GovRliIntV1_OnBarPostCanTrade(ts0 + 60, 2UL, true, (int)AS_CT_DENY_NONE, (int)HALT_NONE, 0, 2.0, 10000.0, 9990.0, 12.0, 0.9, 2, 30, false, true);
+    if(g_gov_rli_v1.lock_events < 1)
+        return Fail("rli236_lock");
+    if(g_gov_rli_v1.thaw_successes < 1)
+        return Fail("rli236_thaw");
+    GovRliIntV1_OnBarPostCanTrade(ts0 + 120, 3UL, false, (int)AS_CT_DENY_DD_LOCK, (int)HALT_DRAWDOWN, 0, 4.0, 10000.0, 9800.0, 20.0, 1.0, 2, 30, false, true);
+    if(g_gov_rli_v1.thaw_interruptions < 1)
+        return Fail("rli236_thaw_interrupt");
+    const int dd_cls = GovRliEngV1_ClassifyDd(0.5, 15.0, 0.05, false, true);
+    if(dd_cls != (int)GOV_RLI_DD_TESTER_ARTIFACT_V1)
+        return Fail("rli236_dd_class");
+    const int fp_cls = GovRliEngV1_ClassifyFloatStress(0.2, 0);
+    if(fp_cls != (int)GOV_RLI_FLOAT_MICRO_V1)
+        return Fail("rli236_float_norm");
+    const int persist_cls = GovRliEngV1_ClassifyPersistence(200);
+    if(persist_cls != (int)GOV_RLI_LP_PARALYSIS_V1)
+        return Fail("rli236_paralysis");
+    GovRliIntV1_FlushPersistence();
+    GovRliIntV1_Configure(false);
+    return true;
+}
+
 int OnInit() {
     GovCmpDsV1_Init(g_gov_test_cmp_baseline_row_v1);
     if(!T_Evidence_FusionDeterminism())
@@ -5856,6 +5885,8 @@ int OnInit() {
     if(!GovTest_Phase23EcologyV1())
         return INIT_FAILED;
     if(!GovTest_Phase235RestrictionForensicsV1())
+        return INIT_FAILED;
+    if(!GovTest_Phase236RiskLockIntelV1())
         return INIT_FAILED;
 
     Print("[GOV_SM_V1_TEST] STATUS=PASS suite=governance_kernel_v1");

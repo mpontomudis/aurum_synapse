@@ -33,6 +33,7 @@
 #include "TelemetryAnalytics/GovernanceDynamicRecoveryEngineV1/GovernanceDynamicRecoveryEngineV1.mqh"
 #include "TelemetryAnalytics/GovernanceEcologyEngineV1/GovernanceEcologyIntegrationV1.mqh"
 #include "TelemetryAnalytics/GovernanceRestrictionForensicsV1/GovernanceRestrictionForensicsIntegrationV1.mqh"
+#include "TelemetryAnalytics/RiskLockIntelligenceV1/RiskLockIntelligenceIntegrationV1.mqh"
 #ifdef AURUM_TELEMETRY_T1
 #include "Telemetry/TelemetryCollector.mqh"
 #endif
@@ -137,6 +138,7 @@ input bool InpGovPhase22aRegimeCalibration = true;            // Phase 22A: regi
 input bool InpGovDynRecoveryEnable = true;                    // Phase 22B: adaptive DD recovery (cooldown shave + staged caps; never bypasses hard DD)
 input bool InpGovPhase23EcologyEnable = true;                // Phase 23: adaptive strategy ecology (participation governance; no auto-optimize)
 input bool InpGovPhase235RestrictionForensics = true;       // Phase 23.5: restriction forensics & execution starvation telemetry (observe-only)
+input bool InpGovPhase236RiskLockIntel = true;             // Phase 23.6: risk lock / thaw intelligence (observe-only; no safety weakening)
 
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
@@ -156,6 +158,7 @@ InfoPanel *g_infoPanel = NULL;
 datetime g_lastBarTime = 0;
 bool g_initialized = false;
 int g_totalTrades = 0;
+static ulong s_rli_bar_seq_v1 = 0;
 
 //--- H2 diagnostic throttling (Jul–Dec only when InpDiagH2JulDec)
 static ulong   g_h2LastMarketFingerprint = 0;
@@ -360,6 +363,7 @@ string Aurum_FmtDossierInputSnapshotV1(void) {
     o += "InpGovDynRecoveryEnable=" + IntegerToString((int)InpGovDynRecoveryEnable) + "\n";
     o += "InpGovPhase23EcologyEnable=" + IntegerToString((int)InpGovPhase23EcologyEnable) + "\n";
     o += "InpGovPhase235RestrictionForensics=" + IntegerToString((int)InpGovPhase235RestrictionForensics) + "\n";
+    o += "InpGovPhase236RiskLockIntel=" + IntegerToString((int)InpGovPhase236RiskLockIntel) + "\n";
     return o;
 }
 
@@ -492,6 +496,8 @@ int OnInit() {
     GovEcolIntV1_Configure(InpGovPhase23EcologyEnable);
     GovRfIntV1_ModuleInit();
     GovRfIntV1_Configure(InpGovPhase235RestrictionForensics);
+    GovRliIntV1_ModuleInit();
+    GovRliIntV1_Configure(InpGovPhase236RiskLockIntel);
     Logger::Info("RiskManager initialized - Circuit breakers active");
     
     //--- Create and initialize Trade Manager
@@ -569,6 +575,7 @@ void OnDeinit(const int reason) {
 #endif
     GovRuntimeObsIntV1_EmitEndOfRun(_Symbol, reason);
     GovRfIntV1_FlushPersistence();
+    GovRliIntV1_FlushPersistence();
     GovEcolIntV1_FlushPersistence();
     if(InpGovVisualHtmlExport && MQLInfoInteger(MQL_TESTER) == 0) {
         Aurum_FillDossierColdSnapshotV1();
@@ -625,6 +632,7 @@ void OnTick() {
     //--- NEW BAR detected - proceed with processing
     g_lastBarTime = currentBarTime;
     g_totalTrades++;  // Count bars processed
+    s_rli_bar_seq_v1 = (ulong)g_totalTrades;
     GovRfIntV1_OnNewBarOpened();
 
     // GOV_SHADOW_SAFE_POINT — bar-open boundary: cheapest place for per-bar shadow snapshot (no I/O).
@@ -673,6 +681,12 @@ void OnTick() {
     //--- 2. Risk authorization (execution) — observability may continue in Phase 3D lab mode
     const bool execRiskAllows = g_riskManager.CanTrade();
     GovRfIntV1_OnRiskSample(execRiskAllows, g_riskManager.GetLastCanTradeDenyDetail());
+    GovRliIntV1_OnBarPostCanTrade(currentBarTime, s_rli_bar_seq_v1, execRiskAllows, g_riskManager.GetLastCanTradeDenyDetail(),
+                                 (int)g_riskManager.GetHaltReasonEnum(), g_riskManager.GetConsecutiveLosses(),
+                                 g_riskManager.GetEquityDD(), AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY),
+                                 gov_reg_spread_pts, marketState.atrRatio,
+                                 GovRegimeDsV1_RegimeSlot(g_gov_regime_store_v1.current_regime),
+                                 InpMaxSpreadPoints, InpUseGridRecovery, (MQLInfoInteger(MQL_TESTER) != 0));
     // GOV_RUNTIME_INJECTION_CANDIDATE — align native CanTrade() with shadow execution_allowed (observe-only v1).
     if(!execRiskAllows) {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_RISK_HALT);
@@ -890,6 +904,8 @@ void OnTick() {
     TelemetryT2_EnqueueCopy(s_telemetryBarRow);
 #endif
 #endif
+
+    GovRliIntV1_OnBarEnd(g_gov_ecology_v1.last_bar_suppress_clears);
 
     // GOV_COLD_PATH_ONLY — ring-buffer / replay-append / forensic export must drain here or in OnTimer, not above.
     
@@ -1341,6 +1357,7 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
         GovSigForensicsV1_RecordExecuted((datetime)TimeCurrent(), state,
                                        GovSigForensicsV1_DominantStratSlot8(gov_rtag_signals[0], gov_rtag_signals[1], gov_rtag_signals[2], gov_rtag_signals[3], gov_rtag_signals[4], gov_rtag_signals[5], gov_rtag_signals[6], gov_rtag_signals[7], signal), signal, (int)qualityScore);
         GovRfIntV1_OnTradeOpened();
+        GovRliIntV1_OnExecutionOpened(s_rli_bar_seq_v1);
 
         Logger::LogTrade(ticket, "OPEN_" + EnumToString(signal), lot, price, sl, tp, (int)qualityScore);
         Logger::Info("Trade #" + IntegerToString(g_totalTrades) + " opened successfully");
@@ -1478,6 +1495,7 @@ double OnTester() {
         GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, _Period, InpGovVisualSidecars, InpGovDossierCompareExport);
     }
     GovRfIntV1_FlushPersistence();
+    GovRliIntV1_FlushPersistence();
     GovEcolIntV1_FlushPersistence();
     return 0.0;
 }

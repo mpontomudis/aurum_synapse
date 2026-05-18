@@ -80,6 +80,9 @@ public:
     bool             IsEquityDDExceeded(double maxPct);
     bool             IsMaxConsecutiveLossesReached();
     bool             CanTrade();
+    void             RefreshDrawdownSnapshot(void);
+    bool             IsHaltedDrawdown(void);
+    void             ApplyCooldownDecaySeconds(const int seconds);
     
     //--- Trade event handlers
     void             OnTradeClosed(bool wasProfit, double amount);
@@ -90,6 +93,8 @@ public:
     void             ResetCircuitBreaker();
     bool             IsHalted() { return m_isHalted; }
     string           GetHaltReason();
+    ENUM_HALT_REASON GetHaltReasonEnum(void) { return m_haltReason; }
+    datetime         GetHaltUntil(void) { return m_haltUntil; }
     int              GetLastCanTradeDenyDetail(void) { return m_lastCanTradeDenyDetail; }
     
     //--- Accessors
@@ -228,6 +233,47 @@ bool RiskManager::IsMaxConsecutiveLossesReached(void) {
     }
     
     return false;
+}
+
+//+------------------------------------------------------------------+
+//| Refresh equity drawdown % without tripping circuit breaker       |
+//+------------------------------------------------------------------+
+void RiskManager::RefreshDrawdownSnapshot(void) {
+    UpdatePeakEquity();
+    m_currentEquity = AccountInfoDouble(ACCOUNT_EQUITY);
+    if(m_peakEquity > 0.0)
+        m_equityDD = ((m_peakEquity - m_currentEquity) / m_peakEquity) * 100.0;
+    else
+        m_equityDD = 0.0;
+}
+
+//+------------------------------------------------------------------+
+//| True when halted specifically for equity drawdown cooldown       |
+//+------------------------------------------------------------------+
+bool RiskManager::IsHaltedDrawdown(void) {
+    return (m_isHalted && m_haltReason == HALT_DRAWDOWN);
+}
+
+//+------------------------------------------------------------------+
+//| Advance drawdown halt deadline (adaptive thaw only; never bypass)|
+//+------------------------------------------------------------------+
+void RiskManager::ApplyCooldownDecaySeconds(const int seconds) {
+    if(seconds <= 0)
+        return;
+    if(!m_isHalted || m_haltReason != HALT_DRAWDOWN)
+        return;
+    const datetime now = TimeCurrent();
+    if(now >= m_haltUntil)
+        return;
+    long span = (long)(m_haltUntil - now);
+    if(span <= 1)
+        return;
+    int dec = seconds;
+    if(dec >= (int)span)
+        dec = (int)span - 1;
+    if(dec < 1)
+        return;
+    m_haltUntil -= (datetime)dec;
 }
 
 //+------------------------------------------------------------------+

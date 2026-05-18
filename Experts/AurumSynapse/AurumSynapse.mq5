@@ -29,6 +29,7 @@
 #include "Core/TradeDiag.mqh"
 #include "TelemetryAnalytics/GovernanceRuntimeStrategyTaggingV1/GovernanceRuntimeStrategyTaggingV1.mqh"
 #include "TelemetryAnalytics/GovernanceSignalForensicsV1/GovernanceSignalForensicsV1.mqh"
+#include "TelemetryAnalytics/GovernanceRegimeEngineV1/GovernanceRegimeIntegrationV1.mqh"
 #ifdef AURUM_TELEMETRY_T1
 #include "Telemetry/TelemetryCollector.mqh"
 #endif
@@ -128,6 +129,7 @@ input group "=== GOVERNANCE BACKTEST DOSSIER (PHASE 20B) ==="
 input string InpGovDossierGitCommit = "";                    // Optional git SHA / build id for dossier metadata
 input int InpGovDossierBuildNumber = 0;                       // Optional CI build number
 input bool InpGovDossierCompareExport = false;                // Also write *_governance_report_compare.html stub
+input bool InpGovRegimeCsvAppend = false;                     // Append regime telemetry rows to CSV (tester / explicit)
 
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
@@ -400,6 +402,7 @@ int OnInit() {
     GovRuntimeObsIntV1_ModuleInit();
     GovRuntimeVisualIntV1_ModuleInit();
     GovSigForensicsV1_ModuleInit();
+    GovRegimeIntV1_ModuleInit();
     GovRuntimeObsIntV1_Configure(InpGovRuntimeObsJournal, InpGovRuntimeObsFile, InpGovRuntimeObsFilePath,
                                  GOV_RUNTIME_OBS_FLAG_INCLUDE_RAW);
     
@@ -668,9 +671,17 @@ void OnTick() {
     }
     
     MarketState marketState = g_marketAnalyzer.GetState();
+    MqlRates gov_reg_rates[];
+    ArraySetAsSeries(gov_reg_rates, true);
+    const int gov_reg_n = CopyRates(_Symbol, _Period, 0, 96, gov_reg_rates);
+    const double gov_reg_spread_pts = (SymbolInfoDouble(_Symbol, SYMBOL_ASK) - SymbolInfoDouble(_Symbol, SYMBOL_BID)) / _Point;
+    GovRegimeIntV1_OnBar(marketState, gov_reg_rates, gov_reg_n, currentBarTime, gov_reg_spread_pts,
+                        (InpGovRegimeCsvAppend && MQLInfoInteger(MQL_TESTER) != 0));
+    GovRegimeIntV1_ApplyLegacyOverlay(marketState);
     Aurum_LogH2MarketStateIfChanged(marketState, currentBarTime);
 
     GovSigForensicsV1_NotifyPipelineOpen(currentBarTime);
+    GovRegimeIntV1_OnPipelineSignal(currentBarTime);
 
     // GOV_SHADOW_SAFE_POINT — pre-signal: regime / state available for lightweight shadow capture.
     
@@ -857,6 +868,13 @@ void OnTradeTransaction(const MqlTradeTransaction &trans,
                      + HistoryDealGetDouble(trans.deal, DEAL_SWAP)
                      + HistoryDealGetDouble(trans.deal, DEAL_COMMISSION);
     bool wasProfit = (profit > 0.0);
+    const ulong gov_pos = (ulong)HistoryDealGetInteger(trans.deal, DEAL_POSITION_ID);
+    const datetime gov_dts = (datetime)HistoryDealGetInteger(trans.deal, DEAL_TIME);
+    const long gov_pcents = (long)MathRound(profit * 100.0);
+    SGovRuntimeTradeIdentityV1 gov_rid;
+    GovRunTagDsV1_InitIdentity(gov_rid);
+    if(GovRunAttrV1_FindByTicket(g_gov_rtag_module_v1.reg, gov_pos, gov_rid))
+       GovRegimeIntV1_OnAttributedTradeClose(gov_dts, gov_rid.strategy_id, gov_pos, gov_pcents);
     GovRunTagIntV1_OnTradeClose(_Symbol, (long)InpMagicNumber, trans.deal);
     g_riskManager.OnTradeClosed(wasProfit, profit);
 }
@@ -1238,6 +1256,7 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
         g_totalTrades++;
         g_riskManager.OnTradeOpened(lot);
         GovRunTagIntV1_OnTradeOpen(_Symbol, ticket, signal, gov_rtag_signals, state.regime, state.session, state.atrRatio, qualityScore);
+        GovRegimeIntV1_RecordOpenOrder(_Symbol, ticket);
         GovSigForensicsV1_RecordExecuted((datetime)TimeCurrent(), state,
                                        GovSigForensicsV1_DominantStratSlot8(gov_rtag_signals[0], gov_rtag_signals[1], gov_rtag_signals[2], gov_rtag_signals[3], gov_rtag_signals[4], gov_rtag_signals[5], gov_rtag_signals[6], gov_rtag_signals[7], signal), signal, (int)qualityScore);
 

@@ -13,6 +13,7 @@
 #include "../TelemetryAnalytics/GovernanceShadowRuntimeLaneV1.mqh"
 #include "../TelemetryAnalytics/GovernanceRuntimeStrategyTaggingV1/GovernanceRuntimeStrategyTaggingV1.mqh"
 #include "../TelemetryAnalytics/GovernanceSignalForensicsV1/GovernanceSignalForensicsV1.mqh"
+#include "../TelemetryAnalytics/GovernanceRegimeEngineV1/GovernanceRegimeIntegrationV1.mqh"
 
 SGovCmpRunRecordV1 g_gov_test_cmp_baseline_row_v1;
 
@@ -5014,11 +5015,14 @@ bool GovTest_Recommendations(void) {
     GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX012", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, html);
     if(StringFind(html, "Adaptive governance recommendations") < 0)
         return Fail("doss_reco");
+    if(StringFind(html, "Regime detection intelligence") < 0)
+        return Fail("doss_reg22");
     return true;
 }
 
 bool GovTest_DeterministicExport(void) {
     GovSigForensicsV1_ModuleInit();
+    GovRegimeIntV1_ModuleInit();
     GovRunTagIntV1_ModuleInit();
     SGovStratAttribSummaryV1 sum;
     GovRunTagIntV1_BuildSummaryFromBridge(g_gov_rtag_module_v1.bridge, sum);
@@ -5028,6 +5032,7 @@ bool GovTest_DeterministicExport(void) {
     string a = "", b = "";
     GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX013", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, a);
     GovSigForensicsV1_ModuleInit();
+    GovRegimeIntV1_ModuleInit();
     GovBacktestDossierV1_BuildFullHtml("XAUUSD", PERIOD_M5, "TSFIX013", g_gov_rtag_module_v1, g_gov_lineage_reg_v1, g_gov_lineage_rec_v1, sum, ex, g_gov_test_cmp_baseline_row_v1, b);
     if(a != b)
         return Fail("doss_det");
@@ -5037,6 +5042,7 @@ bool GovTest_DeterministicExport(void) {
 bool GovTest_SignalLifecycle(void)
 {
    GovSigForensicsV1_ModuleInit();
+   GovRegimeIntV1_ModuleInit();
    GovSigFoV1_OnCreatedOnly(g_gov_sig_forensics_tel_v1, D'2026.03.15');
    MarketState st;
    GovSigForensicsV1_MakeStubState(REGIME_RANGING, st);
@@ -5062,6 +5068,7 @@ bool GovTest_RejectReason(void)
 bool GovTest_FilterHeatmap(void)
 {
    GovSigForensicsV1_ModuleInit();
+   GovRegimeIntV1_ModuleInit();
    MarketState st;
    GovSigForensicsV1_MakeStubState(REGIME_TRENDING, st);
    GovSigForensicsV1_RecordReject(D'2026.06.10', st, 3, SIGNAL_BUY, 60, SIGNAL_REJECT_REQUIRE_KEYLEVEL, false);
@@ -5075,6 +5082,7 @@ bool GovTest_FilterHeatmap(void)
 bool GovTest_MonthlyActivation(void)
 {
    GovSigForensicsV1_ModuleInit();
+   GovRegimeIntV1_ModuleInit();
    MarketState st;
    GovSigForensicsV1_MakeStubState(REGIME_RANGING, st);
    for(int k = 0; k < 5; k++)
@@ -5089,6 +5097,7 @@ bool GovTest_MonthlyActivation(void)
 bool GovTest_ConsensusCollapse(void)
 {
    GovSigForensicsV1_ModuleInit();
+   GovRegimeIntV1_ModuleInit();
    MarketState st;
    GovSigForensicsV1_MakeStubState(REGIME_RANGING, st);
    for(int k = 0; k < 20; k++)
@@ -5104,6 +5113,7 @@ bool GovTest_ConsensusCollapse(void)
 bool GovTest_RegimeSuppression(void)
 {
    GovSigForensicsV1_ModuleInit();
+   GovRegimeIntV1_ModuleInit();
    MarketState stT;
    GovSigForensicsV1_MakeStubState(REGIME_TRENDING, stT);
    GovSigForensicsV1_RecordAccepted(D'2026.02.01', stT, 0, SIGNAL_BUY, 70);
@@ -5124,6 +5134,7 @@ bool GovTest_RegimeSuppression(void)
 bool GovTest_DeadSignalZones(void)
 {
    GovSigForensicsV1_ModuleInit();
+   GovRegimeIntV1_ModuleInit();
    MarketState st;
    GovSigForensicsV1_MakeStubState(REGIME_RANGING, st);
    GovSigForensicsV1_RecordAccepted(D'2026.02.28', st, 0, SIGNAL_BUY, 80);
@@ -5142,6 +5153,7 @@ bool GovTest_ActivationStarvation(void)
 bool GovTest_SignalForensicsHtml(void)
 {
    GovSigForensicsV1_ModuleInit();
+   GovRegimeIntV1_ModuleInit();
    string h = "";
    GovSigForensicsHtmlV1_AppendSection(g_gov_sig_forensics_tel_v1, h);
    if(StringFind(h, "SIGNAL FORENSICS INTELLIGENCE") < 0)

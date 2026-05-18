@@ -37,4 +37,9 @@ inline void GovBacktestSurvV1_AppendMatrix(const SGovVisualExecSummaryV1 &ex, st
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
 }
 
+inline void GovBacktestSurvV1_AppendMatrixTable(const SGovVisualExecSummaryV1 &ex, string &html)
+{
+   GovBacktestSurvV1_AppendMatrix(ex, html);
+}
+
 #endif // __AURUM_GOV_BACKTEST_SURV_V1_MQH__

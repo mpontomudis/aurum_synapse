@@ -140,7 +140,7 @@ inline void GovBacktestMetaV1_AppendSection(const string report_id,
    }
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<h3 class=\"gov-h3\">Execution envelope · environment metadata</h3>\n<table class=\"doss-meta\"><tbody>\n");
-   GovBacktestEnvSnapV1_AppendTableRows(sym, html);
+   GovBacktestEnvSnapV1_AppendTableRowsSym(sym, html);
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></section>\n");
 }
 

@@ -6,6 +6,7 @@
 #define __AURUM_GOV_BACKTEST_CAP_V1_MQH__
 
 #include "../GovernanceRuntimeObservabilityExportV1/GovernanceRuntimeObservabilityDatasetV1.mqh"
+#include "GovernanceRuntimeVisualDatasetV1.mqh"
 #include "GovernanceRuntimeVisualHtmlWriterV1.mqh"
 
 inline string GovBacktestCapV1_Classify(const SGovRuntimeObsCapitalSnapV1 &cap)
@@ -35,6 +36,12 @@ inline void GovBacktestCapV1_AppendSection(string &html)
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<p style=\"color:#8b949e;font-size:0.85rem;\">Small accounts fail when normalized lot rounds to broker minimum violation or free margin cannot fund margin amplification during recovery cascades.</p>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
+}
+
+inline void GovBacktestCapV1_AppendPanelBody(string &html, const SGovVisualExecSummaryV1 &sum)
+{
+   (void)sum;
+   GovBacktestCapV1_AppendSection(html);
 }
 
 #endif // __AURUM_GOV_BACKTEST_CAP_V1_MQH__

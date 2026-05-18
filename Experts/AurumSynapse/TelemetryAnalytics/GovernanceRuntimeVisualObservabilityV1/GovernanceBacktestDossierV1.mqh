@@ -25,16 +25,17 @@
 #include "GovernanceRuntimeVisualTelemetryV1.mqh"
 #include "GovernanceBacktestMetadataV1.mqh"
 #include "GovernanceBacktestInputSnapshotV1.mqh"
+#include "GovernanceBacktestEnvironmentSnapshotV1.mqh"
 #include "GovernanceBacktestCapitalDiagnosticsV1.mqh"
 #include "GovernanceBacktestSurvivabilityV1.mqh"
 #include "GovernanceBacktestReplayTimelineV1.mqh"
 #include "GovernanceBacktestRecoveryAnalysisV1.mqh"
 #include "GovernanceBacktestFailureDiagnosticsV1.mqh"
-#include "GovernanceBacktestRecommendationsV1.mqh"
 #include "GovernanceBacktestComparativeInsightsV1.mqh"
+#include "GovernanceBacktestRecommendationsV1.mqh"
 #include "GovernanceIntelligenceDossierPresentationV1.mqh"
 #include "../GovernancePositionLineageIntelligenceV1/GovernanceRecoveryChainAnalyticsV1.mqh"
-#include "../GovernanceSignalForensicsV1/GovernanceSignalForensicsHtmlV1.mqh"
+#include "../GovernanceSignalForensicsV1/GovernanceSignalForensicsV1.mqh"
 
 inline string GovBacktestDossierV1_RegimeDossierLabel(const int regime)
 {
@@ -265,7 +266,7 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    GovBacktestDossierV1_AppendRiskConfiguration(html);
    GovBacktestDossierV1_AppendStrategyActivation(sum, tmp, html);
    GovIntelDossierV1_AppendKvLensCards(html);
-   GovBacktestCapV1_AppendPanelBody(html);
+   GovBacktestCapV1_AppendPanelBody(html, ex);
    GovBacktestInpSnapV1_AppendSection(html);
    GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
 

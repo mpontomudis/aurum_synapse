@@ -29,7 +29,6 @@ inline void GovBacktestEnvSnapV1_AppendTableRowsImpl(string &html, const string 
 
 inline void GovBacktestEnvSnapV1_AppendTableRows(string &html, const SGovVisualExecSummaryV1 &sum)
 {
-   (void)sum;
    GovBacktestEnvSnapV1_AppendTableRowsImpl(html, _Symbol);
 }
 

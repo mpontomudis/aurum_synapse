@@ -40,7 +40,6 @@ inline void GovBacktestCapV1_AppendSection(string &html)
 
 inline void GovBacktestCapV1_AppendPanelBody(string &html, const SGovVisualExecSummaryV1 &sum)
 {
-   (void)sum;
    GovBacktestCapV1_AppendSection(html);
 }
 

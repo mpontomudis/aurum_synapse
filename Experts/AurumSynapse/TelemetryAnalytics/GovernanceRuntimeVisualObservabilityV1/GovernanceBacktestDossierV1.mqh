@@ -276,7 +276,7 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    GovRuntimeVisualHtmlW1_AppendLf(html, "<h3 class=\"gov-h3\">Executive telemetry strip</h3>\n");
    GovRuntimeVisualDashV1_AppendExecCards(ex, sum, html);
    GovIntelDossierV1_AppendPerformanceSupplement(ex, sum, tsx, html);
-   GovBacktestSurvV1_AppendMatrixTable(ex, html);
+   GovBacktestSurvV1_AppendMatrixTable(html, ex);
    GovRuntimeVisualHtmlW1_AppendLf(html, "</section>\n");
 
    GovRuntimeVisualHtmlW1_AppendLf(html, "<section id=\"intel-s5\" class=\"gov-intel-sec\"><h2><span class=\"gov-sec-num\">05</span> Strategy ecology intelligence</h2>\n");

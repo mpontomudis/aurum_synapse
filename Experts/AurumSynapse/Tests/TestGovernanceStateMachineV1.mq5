@@ -18,6 +18,7 @@
 #include "../TelemetryAnalytics/GovernanceRestrictionForensicsV1/GovernanceRestrictionForensicsIntegrationV1.mqh"
 #include "../TelemetryAnalytics/RiskLockIntelligenceV1/RiskLockIntelligenceIntegrationV1.mqh"
 #include "../TelemetryAnalytics/AdaptiveThawStabilizationV1/AdaptiveThawStabilizationIntegrationV1.mqh"
+#include "../TelemetryAnalytics/GovernanceRecoveryContinuationV1/GovernanceRecoveryContinuationIntegrationV1.mqh"
 
 SGovCmpRunRecordV1 g_gov_test_cmp_baseline_row_v1;
 
@@ -5384,6 +5385,46 @@ bool GovTest_Phase237AdaptiveThawStabilizationV1(void) {
     return true;
 }
 
+bool GovTest_Phase24RecoveryContinuationIntelV1(void) {
+    if(GovRciEngV1_ClassifyInertia(80.0, 8UL, 80.0, false) != (int)GOV_RCI_INERTIA_LOW_V1)
+        return Fail("rci24_inertia_low");
+    if(GovRciEngV1_ClassifyInertia(900.0, 250UL, 100.0, false) != (int)GOV_RCI_INERTIA_CRITICAL_V1)
+        return Fail("rci24_inertia_crit");
+    if(GovRciEngV1_ClassifyInertia(100.0, 50UL, 50.0, true) != (int)GOV_RCI_INERTIA_STABLE_DEAD_V1)
+        return Fail("rci24_inertia_dead");
+    GovRciIntV1_ModuleInit();
+    GovRciIntV1_Configure(true);
+    GovRliIntV1_ModuleInit();
+    GovRliIntV1_Configure(true);
+    GovRfIntV1_ModuleInit();
+    GovRfIntV1_Configure(true);
+    GovEcolIntV1_ModuleInit();
+    GovEcolIntV1_Configure(true);
+    GovAtsIntV1_ModuleInit();
+    GovAtsIntV1_Configure(true);
+    GovRliEngV1_OnBarEndStoreEco(g_gov_rli_v1, 1);
+    const datetime ts1 = (datetime)1850000000;
+    GovRliIntV1_OnBarPostCanTrade(ts1, 1UL, true, (int)AS_CT_DENY_NONE, (int)HALT_NONE, 0, 3.0, 10000.0, 9980.0, 18.0, 1.0, 2, 30, false, true);
+    g_gov_ecology_v1.ecology_diversity_score_pm = 420;
+    g_gov_ecology_v1.ecology_entropy_score_pm = 400;
+    g_gov_ats_v1.last_thaw_confidence_pm = 600.0;
+    g_gov_ats_v1.last_recovery_momentum_pm = 480.0;
+    g_gov_ats_v1.last_exec_continuity_pm = 250.0;
+    g_gov_ats_v1.last_paralysis_index_pm = 220.0;
+    g_gov_ats_v1.prev_eq_dd = 3.2;
+    GovAtsIntV1_OnBar(1UL, 3.0, 10000.0, 9980.0, 18.0, 1.0, true);
+    GovRciIntV1_OnBar(1UL, 3.0, true);
+    if(g_gov_rci_v1.bars_observed != 1UL)
+        return Fail("rci24_bars");
+    GovRciIntV1_FlushPersistence();
+    GovRciIntV1_Configure(false);
+    GovAtsIntV1_Configure(false);
+    GovRliIntV1_Configure(false);
+    GovRfIntV1_Configure(false);
+    GovEcolIntV1_Configure(false);
+    return true;
+}
+
 int OnInit() {
     GovCmpDsV1_Init(g_gov_test_cmp_baseline_row_v1);
     if(!T_Evidence_FusionDeterminism())
@@ -5931,6 +5972,8 @@ int OnInit() {
     if(!GovTest_Phase236RiskLockIntelV1())
         return INIT_FAILED;
     if(!GovTest_Phase237AdaptiveThawStabilizationV1())
+        return INIT_FAILED;
+    if(!GovTest_Phase24RecoveryContinuationIntelV1())
         return INIT_FAILED;
 
     Print("[GOV_SM_V1_TEST] STATUS=PASS suite=governance_kernel_v1");

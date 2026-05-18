@@ -42,6 +42,7 @@
 #include "../GovernanceRestrictionForensicsV1/GovernanceRestrictionForensicsIntegrationV1.mqh"
 #include "../RiskLockIntelligenceV1/RiskLockIntelligenceIntegrationV1.mqh"
 #include "../AdaptiveThawStabilizationV1/AdaptiveThawStabilizationIntegrationV1.mqh"
+#include "../GovernanceRecoveryContinuationV1/GovernanceRecoveryContinuationIntegrationV1.mqh"
 
 inline string GovBacktestDossierV1_RegimeDossierLabel(const int regime)
 {
@@ -260,7 +261,7 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    GovRuntimeVisualHtmlW1_AppendLf(html, "<nav id=\"toc\" class=\"gov-toc\"><a href=\"#intel-s1\">01 Exec</a><a href=\"#intel-s2\">02 Meta</a><a href=\"#intel-s3\">03 Config</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s4\">04 Perf</a><a href=\"#intel-s5\">05 Ecology</a><a href=\"#intel-s6\">06 Consensus</a><a href=\"#intel-s7\">07 Signal</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s8\">08 Regime</a><a href=\"#intel-s9\">09 Session</a><a href=\"#intel-s10\">10 Lineage</a><a href=\"#intel-s11\">11 Breach</a>");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s12\">12 Toxicity</a><a href=\"#intel-s21\">21 SigForensics</a><a href=\"#intel-s22\">22 Regime</a><a href=\"#intel-s22b\">22B Recovery</a><a href=\"#intel-s22d\">22D Confidence</a><a href=\"#intel-s23\">23 Strat Ecology</a><a href=\"#intel-s24\">24 Restriction Forensics</a><a href=\"#intel-s25\">25 Risk Lock Intel</a><a href=\"#intel-s26\">26 Adaptive Thaw</a><a href=\"#intel-s13\">13 Forensics</a><a href=\"#intel-s14\">14 Reco</a><a href=\"#intel-s15\">15 Verdict</a>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s12\">12 Toxicity</a><a href=\"#intel-s21\">21 SigForensics</a><a href=\"#intel-s22\">22 Regime</a><a href=\"#intel-s22b\">22B Recovery</a><a href=\"#intel-s22d\">22D Confidence</a><a href=\"#intel-s23\">23 Strat Ecology</a><a href=\"#intel-s24\">24 Restriction Forensics</a><a href=\"#intel-s25\">25 Risk Lock Intel</a><a href=\"#intel-s26\">26 Adaptive Thaw</a><a href=\"#intel-s27\">27 Recovery Cont</a><a href=\"#intel-s28\">28 Inertia</a><a href=\"#intel-s29\">29 Eco React</a><a href=\"#intel-s30\">30 Life Cycle</a><a href=\"#intel-s13\">13 Forensics</a><a href=\"#intel-s14\">14 Reco</a><a href=\"#intel-s15\">15 Verdict</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-attest\">Attest</a></nav>\n<main class=\"gov-main\">\n");
 
    GovIntelDossierV1_AppendExecutive(sym, tf, meta_ts, mod, lin, sum, ex, tsx, html);
@@ -319,6 +320,7 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    GovRfIntV1_AppendDossierSection24(html);
    GovRliIntV1_AppendDossierSection25(html);
    GovAtsIntV1_AppendDossierSection26(html);
+   GovRciIntV1_AppendDossierSections2730(html);
 
    GovIntelDossierV1_AppendForensicsShellOpen(html);
    GovBacktestRecoveryV1_AppendSection(lin, html);

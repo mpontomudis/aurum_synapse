@@ -10,6 +10,7 @@
 #include "../GovernanceStrategyAttributionIntelligenceV1/GovernanceStrategyAttributionExportV1.mqh"
 #include "../GovernanceSignalForensicsV1/GovernanceSignalForensicsTelemetryV1.mqh"
 #include "GovernanceRegimeMonthlyAnalyticsV1.mqh"
+#include "GovernanceRegimeMonthlyAggregationV1.mqh"
 #include "GovernanceRegimeDatasetV1.mqh"
 
 inline string GovRegimeHtmlV1_RegimeName(const int slot)
@@ -62,6 +63,14 @@ inline void GovRegimeHtmlV1_AppendSection22(const SGovRegimeRuntimeStoreV1 &rg,
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Total classified bars</td><td>" + IntegerToString((long)rg.total_bars) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Transitions</td><td>" + IntegerToString((long)rg.transitions_total) + "</td></tr>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Bars since change</td><td>" + IntegerToString(rg.bars_since_change) + "</td></tr>\n");
+   if(rg.tel_count > 0) {
+      const int ti = (rg.tel_head + rg.tel_count - 1) % GOV_REGIME_TELEM_RING_V1;
+      const SGovRegimeTelemetryV1 last = rg.tel_ring[ti];
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Secondary candidate (last bar)</td><td><code>" +
+                                            GovRuntimeVisualHtmlW1_Escape(GovRegimeHtmlV1_RegimeName(GovRegimeDsV1_RegimeSlot((EAurumMarketRegime)last.secondary_regime))) +
+                                            "</code></td></tr>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Regime confidence ‰ (last bar)</td><td>" + IntegerToString(last.regime_confidence_permille) + "</td></tr>\n");
+   }
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></div>\n");
 
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"reg22-dist\"><h3 class=\"gov-h3\">2. Regime distribution</h3>\n<table id=\"tblReg22Dist\"><thead><tr><th>Regime</th><th>Bars</th><th>Share permille</th></tr></thead><tbody>\n");
@@ -72,20 +81,60 @@ inline void GovRegimeHtmlV1_AppendSection22(const SGovRegimeRuntimeStoreV1 &rg,
    }
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></div>\n");
 
+   ulong dom_hist = 0;
+   for(int r = 0; r < GOV_REGIME_AURUM_SLOT_COUNT_V1; r++) {
+      if(rg.regime_hist[r] > dom_hist)
+         dom_hist = rg.regime_hist[r];
+   }
+   const int dom_perm = (rg.total_bars > 0) ? (int)(1000UL * dom_hist / MathMax(1UL, rg.total_bars)) : 0;
+   const int div_perm = 1000 - dom_perm;
+   double ent = 0.0;
+   if(rg.total_bars > 0) {
+      for(int rr = 0; rr < GOV_REGIME_AURUM_SLOT_COUNT_V1; rr++) {
+         const double p = (double)rg.regime_hist[rr] / (double)rg.total_bars;
+         if(p > 1e-14)
+            ent -= p * MathLog(p);
+      }
+   }
+   const int cont_pm = GovRegimeMoAgg22A_ContinuityPermille(rg);
+   const int mpop = GovRegimeMoAgg22A_MonthsWithBars(rg);
+   const int munk = GovRegimeMoAgg22A_MonthsDominantUnknown(rg);
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"reg22-22a-cont\"><h3 class=\"gov-h3\">2b. Regime continuity & diversity (Phase 22A)</h3>\n<table><tbody>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Continuity score ‰ (months with ≥1 classified bar / 12)</td><td>" + IntegerToString(cont_pm) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Monthly coverage (months populated)</td><td>" + IntegerToString(mpop) + " / 12</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Months dominant UNKNOWN (with bars)</td><td>" + IntegerToString(munk) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Dominant regime share ‰</td><td>" + IntegerToString(dom_perm) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Diversity score ‰ (1000 − dominant share)</td><td>" + IntegerToString(div_perm) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Regime entropy (nats)</td><td>" + DoubleToString(ent, 4) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
+   if(cont_pm < 800)
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-warn\"><b>REGIME_TIMELINE_BREAK</b> — fewer than 10/12 months show classified regime bars (check early execution gates vs telemetry path).</p>\n");
+   if(mpop < 6 && rg.total_bars > 2000)
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-warn\"><b>REGIME_DATA_GAP</b> — sparse monthly coverage despite long replay.</p>\n");
+   if(munk > 4)
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-warn\"><b>REGIME_AGGREGATION_RESET</b> suspect — many UNKNOWN-dominant months (review classifier / bar timestamps).</p>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</div>\n");
+
    GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-note\">Attribution trade_count_input=" + IntegerToString(sum.trade_count_input) + " (cold summary).</p>\n");
 
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"reg22-month\"><h3 class=\"gov-h3\">3. Monthly regime timeline</h3>\n");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<table id=\"tblReg22Mo\"><thead><tr><th>Month</th><th>Dominant</th><th>Signals</th><th>Trades</th><th>Net cents</th><th>DD %</th></tr></thead><tbody>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<table id=\"tblReg22Mo\"><thead><tr><th>Month</th><th>Dominant</th><th>Bars</th><th>Avg conf ‰</th><th>Signals</th><th>Trades</th><th>Net cents</th><th>Run DD %</th></tr></thead><tbody>\n");
    for(int m = 0; m < 12; m++) {
       const int dom = GovRegimeMoV1_DominantRegimeSlot(rg, m);
       const ulong sigc = rg.month_signals[m];
       const ulong trc = (ulong)rg.month_trades[m];
       const long net = rg.month_net_cents[m];
-      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>" + GovRegimeHtmlV1_MonthShort(m) + "</td><td>" + GovRuntimeVisualHtmlW1_Escape(GovRegimeHtmlV1_RegimeName(dom)) + "</td><td>" +
+      const ulong mb = rg.month_bars[m];
+      const int acf = GovRegimeMoAgg22A_AvgConfPermilleMonth(rg, m);
+      string dlab = GovRegimeHtmlV1_RegimeName(dom);
+      if(mb == 0)
+         dlab = "—";
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>" + GovRegimeHtmlV1_MonthShort(m) + "</td><td>" + GovRuntimeVisualHtmlW1_Escape(dlab) + "</td><td>" +
+                                         IntegerToString((long)mb) + "</td><td>" + IntegerToString(acf) + "</td><td>" +
                                          IntegerToString((long)sigc) + "</td><td>" + IntegerToString((long)trc) + "</td><td>" + IntegerToString((int)net) + "</td><td>" +
                                          DoubleToString(ex.balance_dd_rel_pct, 2) + "</td></tr>\n");
    }
-   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table><p class=\"gov-note\">DD % column shows run-level balance DD (tester); monthly decomposition uses regime bar mass.</p></div>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table><p class=\"gov-note\">Run DD % is tester-level (same for all months). Bars = regime-classified bars per calendar month (continuous across halts, Phase 22A).</p></div>\n");
 
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"reg22-tr\"><h3 class=\"gov-h3\">4. Regime transition analysis</h3>\n<table><thead><tr><th>Time</th><th>From</th><th>To</th><th>Post bars</th><th>Tox proxy</th></tr></thead><tbody>\n");
    for(int k = 0; k < rg.tr_count && k < 24; k++) {
@@ -132,7 +181,7 @@ inline void GovRegimeHtmlV1_AppendSection22(const SGovRegimeRuntimeStoreV1 &rg,
 
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"reg22-collapse\"><h3 class=\"gov-h3\">9. Regime collapse alerts</h3>\n");
    if(rg.diversity_collapse)
-      GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-warn\"><b>REGIME_DIVERSITY_COLLAPSE</b> dominant regime exceeded 90 percent bar share or frozen streak exceeded 5000 bars.</p>\n");
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-warn\"><b>REGIME_DIVERSITY_COLLAPSE</b> dominant regime exceeded 80 percent bar share or frozen streak exceeded 5000 bars.</p>\n");
    else
       GovRuntimeVisualHtmlW1_AppendLf(html, "<p>No diversity collapse flag at dossier snapshot.</p>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "</div>\n");

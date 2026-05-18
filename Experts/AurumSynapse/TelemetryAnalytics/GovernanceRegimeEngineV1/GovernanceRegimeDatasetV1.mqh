@@ -54,6 +54,8 @@ struct SGovRegimeTelemetryV1
    int                session_id;
    double             confidence;
    ulong              replay_hash;
+   int                secondary_regime;
+   int                regime_confidence_permille;
 };
 
 struct SGovRegimeFeaturesV1
@@ -120,6 +122,8 @@ struct SGovRegimeRuntimeStoreV1
    ulong month_signals[12];
    int   month_trades[12];
    long  month_net_cents[12];
+   ulong month_bars[12];
+   ulong month_conf_pm_sum[12];
 
    SGovRegimeStratCellV1 strat_regime[GOV_REGIME_STRAT_SLOTS_V1][GOV_REGIME_AURUM_SLOT_COUNT_V1];
 
@@ -166,6 +170,8 @@ inline void GovRegimeDsV1_Init(SGovRegimeRuntimeStoreV1 &s)
       s.month_signals[m] = 0;
       s.month_trades[m] = 0;
       s.month_net_cents[m] = 0;
+      s.month_bars[m] = 0;
+      s.month_conf_pm_sum[m] = 0;
       for(int r = 0; r < GOV_REGIME_AURUM_SLOT_COUNT_V1; r++)
          s.month_regime_hits[m][r] = 0;
    }

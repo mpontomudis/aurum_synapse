@@ -58,6 +58,8 @@ private:
     double           m_maxDailyLossDollars;
     double           m_maxEquityDDPercent;
     int              m_maxConsecutiveLosses;
+
+    int              m_lastCanTradeDenyDetail;
     
     //--- Helper methods
     void             CheckDailyReset();
@@ -88,6 +90,7 @@ public:
     void             ResetCircuitBreaker();
     bool             IsHalted() { return m_isHalted; }
     string           GetHaltReason();
+    int              GetLastCanTradeDenyDetail(void) { return m_lastCanTradeDenyDetail; }
     
     //--- Accessors
     int              GetConsecutiveLosses() { return m_consecutiveLosses; }
@@ -119,7 +122,8 @@ RiskManager::RiskManager(void) :
     m_maxDailyLossPercent(MAX_DAILY_LOSS_PERCENT),
     m_maxDailyLossDollars(MAX_DAILY_LOSS_DOLLARS),
     m_maxEquityDDPercent(MAX_DRAWDOWN_PERCENT),
-    m_maxConsecutiveLosses(MAX_CONSECUTIVE_LOSSES)
+    m_maxConsecutiveLosses(MAX_CONSECUTIVE_LOSSES),
+    m_lastCanTradeDenyDetail((int)AS_CT_DENY_NONE)
 {
 }
 
@@ -230,11 +234,20 @@ bool RiskManager::IsMaxConsecutiveLossesReached(void) {
 //| Check if trading is allowed                                      |
 //+------------------------------------------------------------------+
 bool RiskManager::CanTrade(void) {
+    m_lastCanTradeDenyDetail = (int)AS_CT_DENY_NONE;
     CheckDailyReset();
     
     //--- Check circuit breaker status
     if(m_isHalted) {
         if(TimeCurrent() < m_haltUntil) {
+            if(m_haltReason == HALT_DAILY_LOSS)
+               m_lastCanTradeDenyDetail = (int)AS_CT_DENY_DAILY_LOSS;
+            else if(m_haltReason == HALT_DRAWDOWN)
+               m_lastCanTradeDenyDetail = (int)AS_CT_DENY_DD_LOCK;
+            else if(m_haltReason == HALT_CONSECUTIVE_LOSS)
+               m_lastCanTradeDenyDetail = (int)AS_CT_DENY_CONSEC;
+            else
+               m_lastCanTradeDenyDetail = (int)AS_CT_DENY_COOLDOWN;
             TradeDiag_Blocked("CooldownActive", _Symbol, 0.0, -1);
             return false;  // Still in cooldown
         }
@@ -244,14 +257,17 @@ bool RiskManager::CanTrade(void) {
     
     //--- Check all risk limits
     if(IsDailyLossExceeded(m_maxDailyLossPercent)) {
+        m_lastCanTradeDenyDetail = (int)AS_CT_DENY_DAILY_LOSS;
         TradeDiag_Blocked("DailyLossLimit", _Symbol, 0.0, -1);
         return false;
     }
     if(IsEquityDDExceeded(m_maxEquityDDPercent)) {
+        m_lastCanTradeDenyDetail = (int)AS_CT_DENY_DD_LOCK;
         TradeDiag_Blocked("MaxDrawdown", _Symbol, 0.0, -1);
         return false;
     }
     if(IsMaxConsecutiveLossesReached()) {
+        m_lastCanTradeDenyDetail = (int)AS_CT_DENY_CONSEC;
         TradeDiag_Blocked("MaxConsecutiveLosses", _Symbol, 0.0, -1);
         return false;
     }

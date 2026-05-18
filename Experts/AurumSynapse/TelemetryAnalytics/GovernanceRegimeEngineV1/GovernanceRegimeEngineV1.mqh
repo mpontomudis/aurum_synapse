@@ -151,10 +151,12 @@ inline void GovRegimeEngV1_Step(const MarketState &st,
                                  const double prev_comp_hint,
                                  EAurumMarketRegime &reg,
                                  double &conf,
+                                 EAurumMarketRegime &sec_reg,
+                                 int &conf_pm,
                                  SGovRegimeFeaturesV1 &feat)
 {
    GovRegimeEngV1_BuildFeatures(st, rates, n_rates, spread_points, prev_comp_hint, feat);
-   GovRegimeClassV1_Classify(feat, reg, conf);
+   GovRegimeClassV1_ClassifyFull(feat, reg, conf, sec_reg, conf_pm);
 }
 
 #endif // __AURUM_GOV_REGIME_ENGINE_V1_MQH__

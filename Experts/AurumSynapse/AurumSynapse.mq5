@@ -130,6 +130,7 @@ input string InpGovDossierGitCommit = "";                    // Optional git SHA
 input int InpGovDossierBuildNumber = 0;                       // Optional CI build number
 input bool InpGovDossierCompareExport = false;                // Also write *_governance_report_compare.html stub
 input bool InpGovRegimeCsvAppend = false;                     // Append regime telemetry rows to CSV (tester / explicit)
+input bool InpGovPhase22aRegimeCalibration = true;            // Phase 22A: regime-aware min consensus / min quality (telemetry governance only)
 
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
@@ -618,55 +619,12 @@ void OnTick() {
         PrintFormat("[BAR #%d] Processing new bar @ %s", g_totalTrades, TimeToString(currentBarTime, TIME_DATE | TIME_MINUTES));
     }
     
-    //--- 1. Risk authorization (execution) — observability may continue in Phase 3D lab mode
-    const bool execRiskAllows = g_riskManager.CanTrade();
-    // GOV_RUNTIME_INJECTION_CANDIDATE — align native CanTrade() with shadow execution_allowed (observe-only v1).
-    if(!execRiskAllows) {
-        Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_RISK_HALT);
-        TradeDiag_Blocked("RiskManager", _Symbol, 0.0, diagOpenCount);
-        if(!h2Diag && g_totalTrades <= 3) {
-            string msg = "[BLOCKED] Risk Manager - " + g_riskManager.GetHaltReason();
-            Print(msg);
-        }
-        if(!InpInvestigationSignalObservability) {
-            GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_RISK_HALT, true);
-            UpdatePanel();
-            break;
-        }
-        // Phase 3D: fall through to market update + EvaluateAll; execution gated below
-    }
-    
-    //--- 2. Check time filter
-    if(!IsTimeAllowed()) {
-        Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_TIME_FILTER);
-        TradeDiag_Blocked("TradingHoursFilter", _Symbol, 0.0, diagOpenCount);
-        if(!h2Diag && g_totalTrades <= 3) {
-            Print("[BLOCKED] Time Filter");
-        }
-        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_TIME_FILTER, true);
-        UpdatePanel();
-        break;
-    }
-    
-    //--- 3. Check spread filter
-    double spread = (SymbolInfoDouble(_Symbol, SYMBOL_ASK) - SymbolInfoDouble(_Symbol, SYMBOL_BID)) / _Point;
-    if(spread > InpMaxSpreadPoints) {
-        Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_SPREAD);
-        TradeDiag_Blocked("SpreadTooHigh", _Symbol, 0.0, diagOpenCount);
-        if(!h2Diag && g_totalTrades <= 3) {
-            PrintFormat("[BLOCKED] Spread too wide: %.1f > %d", spread, InpMaxSpreadPoints);
-        }
-        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_SPREAD, true);
-        UpdatePanel();
-        break;
-    }
-    
-    //--- 4. Update market analysis
+    //--- 1. Market analysis + regime intelligence (Phase 22A — before execution gates; preserves monthly regime continuity)
     if(!g_marketAnalyzer.Update()) {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_MARKET_UPDATE_FAIL);
         TradeDiag_Blocked("MarketUpdateFail", _Symbol, 0.0, diagOpenCount);
         Logger::Warning("[ERROR] MarketAnalyzer update failed");
-        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_MARKET_UPDATE_FAIL, true);
+        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_MARKET_UPDATE_FAIL, true, (int)AS_CT_DENY_NONE);
         break;
     }
     
@@ -680,6 +638,50 @@ void OnTick() {
     GovRegimeIntV1_ApplyLegacyOverlay(marketState);
     Aurum_LogH2MarketStateIfChanged(marketState, currentBarTime);
 
+    //--- 2. Risk authorization (execution) — observability may continue in Phase 3D lab mode
+    const bool execRiskAllows = g_riskManager.CanTrade();
+    // GOV_RUNTIME_INJECTION_CANDIDATE — align native CanTrade() with shadow execution_allowed (observe-only v1).
+    if(!execRiskAllows) {
+        Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_RISK_HALT);
+        TradeDiag_Blocked("RiskManager", _Symbol, 0.0, diagOpenCount);
+        if(!h2Diag && g_totalTrades <= 3) {
+            string msg = "[BLOCKED] Risk Manager - " + g_riskManager.GetHaltReason();
+            Print(msg);
+        }
+        if(!InpInvestigationSignalObservability) {
+            GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_RISK_HALT, true,
+                                               g_riskManager.GetLastCanTradeDenyDetail());
+            UpdatePanel();
+            break;
+        }
+        // Phase 3D: fall through to market update + EvaluateAll; execution gated below
+    }
+    
+    //--- 3. Check time filter
+    if(!IsTimeAllowed()) {
+        Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_TIME_FILTER);
+        TradeDiag_Blocked("TradingHoursFilter", _Symbol, 0.0, diagOpenCount);
+        if(!h2Diag && g_totalTrades <= 3) {
+            Print("[BLOCKED] Time Filter");
+        }
+        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_TIME_FILTER, true, (int)AS_CT_DENY_NONE);
+        UpdatePanel();
+        break;
+    }
+    
+    //--- 4. Check spread filter
+    double spread = (SymbolInfoDouble(_Symbol, SYMBOL_ASK) - SymbolInfoDouble(_Symbol, SYMBOL_BID)) / _Point;
+    if(spread > InpMaxSpreadPoints) {
+        Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_SPREAD);
+        TradeDiag_Blocked("SpreadTooHigh", _Symbol, 0.0, diagOpenCount);
+        if(!h2Diag && g_totalTrades <= 3) {
+            PrintFormat("[BLOCKED] Spread too wide: %.1f > %d", spread, InpMaxSpreadPoints);
+        }
+        GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_SPREAD, true, (int)AS_CT_DENY_NONE);
+        UpdatePanel();
+        break;
+    }
+    
     GovSigForensicsV1_NotifyPipelineOpen(currentBarTime);
     GovRegimeIntV1_OnPipelineSignal(currentBarTime);
 
@@ -733,8 +735,11 @@ void OnTick() {
               " | Close[0]: ", DoubleToString(iClose(_Symbol, _Period, 0), 2));
     }
     
-    //--- 7. Calculate consensus
+    //--- 7. Calculate consensus (Phase 22A optional regime-aware vote threshold)
+    const int saveMinConsensus = g_signalManager.GetMinConsensus();
+    g_signalManager.SetMinConsensus(GovRegimeIntV1_EffectiveMinConsensus(InpMinConsensus, InpGovPhase22aRegimeCalibration));
     ENUM_SIGNAL consensus = g_signalManager.GetConsensusSignal(signals, 8);
+    g_signalManager.SetMinConsensus(saveMinConsensus);
     double consensusStrength = g_signalManager.GetConsensusStrength();
     double agreementPct = g_signalManager.GetAgreementPercentage();
     const int buyVotes = g_signalManager.GetBuyCount();
@@ -760,11 +765,12 @@ void OnTick() {
 #ifdef AURUM_TELEMETRY_T1
         qualityScoreForTelemetry = qualityScore;
 #endif
+        const int effMinQuality = GovRegimeIntV1_EffectiveMinQuality(InpMinQualityScore, InpGovPhase22aRegimeCalibration);
         if(!h2Diag) {
-            PrintFormat("[QUALITY] Score: %.1f/100 (Min: %d)", qualityScore, InpMinQualityScore);
+            PrintFormat("[QUALITY] Score: %.1f/100 (Min: %d eff: %d)", qualityScore, InpMinQualityScore, effMinQuality);
         }
         
-        if(qualityScore < InpMinQualityScore) {
+        if(qualityScore < effMinQuality) {
             Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_QUALITY_LOW, consensus, qualityScore, buyVotes, sellVotes);
             TradeDiag_Blocked("QualityScoreLow", _Symbol, 0.0, diagOpenCount);
             GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, SIGNAL_REJECT_QUALITY_LOW, false);
@@ -781,7 +787,8 @@ void OnTick() {
                     // Phase 3D: consensus/quality path visible for research; no new orders while risk halt
                     Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_RISK_HALT, consensus, qualityScore, buyVotes, sellVotes);
                     TradeDiag_Blocked("RiskManager", _Symbol, 0.0, diagOpenCount);
-                    GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, SIGNAL_REJECT_RISK_HALT, false);
+                    GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, SIGNAL_REJECT_RISK_HALT, false,
+                                                   g_riskManager.GetLastCanTradeDenyDetail());
                 } else {
                     ENUM_SIGNAL_REJECT_REASON posFail = SIGNAL_REJECT_NONE;
                     if(!CanOpenNewPosition(posFail)) {

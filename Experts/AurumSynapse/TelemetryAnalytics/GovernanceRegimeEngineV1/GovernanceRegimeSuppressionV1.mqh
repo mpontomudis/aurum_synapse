@@ -19,7 +19,7 @@ inline void GovRegimeSupV1_Evaluate(SGovRegimeRuntimeStoreV1 &s)
          mx = s.regime_hist[r];
    }
    const double dom = (double)mx / (double)MathMax(1UL, s.total_bars);
-   if(dom >= 0.90 || s.frozen_streak_max > 5000) {
+   if(dom >= 0.80 || s.frozen_streak_max > 5000) {
       s.diversity_collapse = true;
       s.diversity_collapse_hits++;
    } else {

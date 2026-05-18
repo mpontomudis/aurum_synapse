@@ -8,10 +8,12 @@
 #include "../../Core/Constants.mqh"
 #include "../../Core/Structures.mqh"
 #include "GovernanceRegimeDatasetV1.mqh"
+#include "GovernanceRegimeCalibrationV1.mqh"
 #include "GovernanceRegimeEngineV1.mqh"
 #include "GovernanceRegimeTelemetryV1.mqh"
 #include "GovernanceRegimeTransitionV1.mqh"
 #include "GovernanceRegimeMonthlyAnalyticsV1.mqh"
+#include "GovernanceRegimeMonthlyAggregationV1.mqh"
 #include "GovernanceRegimeHeatmapV1.mqh"
 #include "GovernanceRegimeDistributionV1.mqh"
 #include "GovernanceRegimeSuppressionV1.mqh"
@@ -110,8 +112,10 @@ inline void GovRegimeIntV1_OnBar(const MarketState &st,
 {
    SGovRegimeFeaturesV1 feat;
    EAurumMarketRegime reg = AURUM_REGIME_UNKNOWN;
+   EAurumMarketRegime sec_reg = AURUM_REGIME_UNKNOWN;
    double conf = 0.0;
-   GovRegimeEngV1_Step(st, rates, n_rates, spread_points, s_gov_regime_prev_comp_v1, reg, conf, feat);
+   int conf_pm = 0;
+   GovRegimeEngV1_Step(st, rates, n_rates, spread_points, s_gov_regime_prev_comp_v1, reg, conf, sec_reg, conf_pm, feat);
    s_gov_regime_prev_comp_v1 = feat.compression_density;
 
    const int slot = GovRegimeDsV1_RegimeSlot(reg);
@@ -132,10 +136,11 @@ inline void GovRegimeIntV1_OnBar(const MarketState &st,
    }
    GovRegimeTrV1_PostBarTick(g_gov_regime_store_v1, 0);
    GovRegimeMoV1_OnBar(g_gov_regime_store_v1, bar_ts, slot);
+   GovRegimeMoAgg22A_OnBar(g_gov_regime_store_v1, bar_ts, conf_pm);
    GovRegimeSupV1_Evaluate(g_gov_regime_store_v1);
 
    SGovRegimeTelemetryV1 row;
-   GovRegimeTelV1_BuildRow(bar_ts, reg, st, feat, conf, row);
+   GovRegimeTelV1_BuildRow(bar_ts, reg, sec_reg, conf_pm, st, feat, conf, row);
    GovRegimeTelV1_Push(g_gov_regime_store_v1, row);
    if(append_csv)
       GovRegimePersistV1_AppendRow(row);
@@ -144,6 +149,20 @@ inline void GovRegimeIntV1_OnBar(const MarketState &st,
 inline void GovRegimeIntV1_OnPipelineSignal(const datetime ts)
 {
    GovRegimeMoV1_OnSignal(g_gov_regime_store_v1, ts);
+}
+
+inline int GovRegimeIntV1_EffectiveMinConsensus(const int base, const bool calib_on)
+{
+   if(!calib_on)
+      return base;
+   return GovRegCalibV1_EffectiveMinConsensus(base, g_gov_regime_store_v1.current_regime);
+}
+
+inline int GovRegimeIntV1_EffectiveMinQuality(const int base, const bool calib_on)
+{
+   if(!calib_on)
+      return base;
+   return GovRegCalibV1_EffectiveMinQuality(base, g_gov_regime_store_v1.current_regime);
 }
 
 #endif

@@ -7,10 +7,12 @@
 
 #include "GovernanceSignalForensicsTelemetryV1.mqh"
 #include "GovernanceSignalRejectReasonV1.mqh"
+#include "GovernanceSuppressionCalibrationV1.mqh"
 #include "../../Core/Structures.mqh"
 
 inline void GovSigForensicsV1_ModuleInit(void)
 {
+   GovSupCalibV1_Init(g_gov_sup_calib_v1);
    GovSigFoV1_Init(g_gov_sig_forensics_tel_v1);
 }
 
@@ -134,10 +136,13 @@ inline void GovSigForensicsV1_NotifyPipelineOpen(const datetime ts)
 inline void GovSigForensicsV1_NotifyEarlyReject(const datetime ts,
                                                 const ENUM_REGIME reg_fallback,
                                                 const ENUM_SIGNAL_REJECT_REASON nat,
-                                                const bool filtered_stage)
+                                                const bool filtered_stage,
+                                                const int risk_cantrade_detail = (int)AS_CT_DENY_NONE)
 {
    GovSigFoV1_OnCreatedOnly(g_gov_sig_forensics_tel_v1, ts);
    const int gr = GovSigRejectV1_FromNative(nat);
+   if(nat == SIGNAL_REJECT_RISK_HALT && risk_cantrade_detail > (int)AS_CT_DENY_NONE)
+      GovSupCalibV1_BumpRiskHaltSub(g_gov_sup_calib_v1, risk_cantrade_detail);
    GovSigFoV1_OnReject(g_gov_sig_forensics_tel_v1, ts, 0, reg_fallback, gr, filtered_stage);
    MarketState stub;
    GovSigForensicsV1_MakeStubState(reg_fallback, stub);
@@ -168,9 +173,14 @@ inline void GovSigForensicsV1_RecordReject(const datetime ts,
                                            const ENUM_SIGNAL consensus,
                                            const int qscore,
                                            const ENUM_SIGNAL_REJECT_REASON nat,
-                                           const bool filtered_stage)
+                                           const bool filtered_stage,
+                                           const int risk_cantrade_detail = -1)
 {
    const int gr = GovSigRejectV1_FromNative(nat);
+   if(nat == SIGNAL_REJECT_RISK_HALT && risk_cantrade_detail > (int)AS_CT_DENY_NONE)
+      GovSupCalibV1_BumpRiskHaltSub(g_gov_sup_calib_v1, risk_cantrade_detail);
+   if(nat == SIGNAL_REJECT_MAX_POSITIONS)
+      GovSupCalibV1_OnPositionLimitReject();
    GovSigFoV1_OnReject(g_gov_sig_forensics_tel_v1, ts, strat_slot, st.regime, gr, filtered_stage);
    bool tr, kl, mo, sp, se, rk;
    GovSigForensicsV1_FillBoolFromRejectCode(gr, tr, kl, mo, sp, se, rk);

@@ -18,6 +18,8 @@ inline void GovRegimePersistV1_AppendRow(const SGovRegimeTelemetryV1 &t)
    FileWrite(h,
              (long)t.ts,
              (int)t.regime,
+             (int)t.secondary_regime,
+             t.regime_confidence_permille,
              t.atr,
              t.trend_strength,
              t.volatility_score,

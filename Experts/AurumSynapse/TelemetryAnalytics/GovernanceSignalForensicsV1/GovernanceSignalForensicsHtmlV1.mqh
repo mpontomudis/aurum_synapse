@@ -6,6 +6,7 @@
 #define __AURUM_GOV_SIG_FORENSICS_HTML_V1_MQH__
 
 #include "GovernanceSignalForensicsTelemetryV1.mqh"
+#include "GovernanceSuppressionCalibrationV1.mqh"
 #include "GovernanceSignalRejectReasonV1.mqh"
 #include "GovernanceSignalMonthlyAnalyticsV1.mqh"
 #include "GovernanceSignalFilterHeatmapV1.mqh"
@@ -127,7 +128,35 @@ inline void GovSigForensicsHtmlV1_AppendSection(const SGovSignalForensicsTelemet
    }
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></div>\n");
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"sigf-dead\"><h3 class=\"gov-h3\">7. Dead signal zones</h3>\n");
+   const ulong cr = t.state_hits[GOV_SIG_CREATED];
+   const ulong ac = t.state_hits[GOV_SIG_ACCEPTED];
+   const ulong ex = t.state_hits[GOV_SIG_EXECUTED];
+   const ulong rj = t.state_hits[GOV_SIG_REJECTED];
+   const int acc_perm = GovSupCalibV1_GovernanceAggressivenessPermille(cr, ac);
+   const int bal_perm = GovSupCalibV1_GovernanceBalancePermille(cr, ac, rj);
+   const int via_perm = GovSupCalibV1_EcosystemViabilityPermille(cr, ex);
+   const int mwoe = GovSupCalibV1_MonthsWithoutExecution(t);
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"sigf-supp-cal\"><h3 class=\"gov-h3\">7. Governance suppression calibration (Phase 22A)</h3>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<table><tbody>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Acceptance ratio ‰ (accepted / created)</td><td>" + IntegerToString(acc_perm) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Balance score ‰ (accepted / (accepted+rejected))</td><td>" + IntegerToString(bal_perm) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Ecosystem viability ‰ (executed / created)</td><td>" + IntegerToString(via_perm) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>Months without execution (of 12)</td><td>" + IntegerToString(mwoe) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<p class=\"gov-sigf-mini\">RISK_HALT decomposition (CanTrade deny class)</p>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<table id=\"tblRiskSub\"><thead><tr><th>Sub-reason</th><th>Count</th></tr></thead><tbody>\n");
+   for(int k = 0; k < AS_CT_DENY_DETAIL_COUNT_V1; k++) {
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>" + GovRuntimeVisualHtmlW1_Escape(GovSupCalibV1_RiskSubLabel(k)) + "</td><td>" +
+                                         IntegerToString(g_gov_sup_calib_v1.risk_halt_sub[k]) + "</td></tr>\n");
+   }
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<tr><td>RISK_POSITION_LIMIT (max positions path)</td><td>" + IntegerToString(g_gov_sup_calib_v1.risk_halt_pos_limit) + "</td></tr>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table>\n");
+   if(acc_perm < 10 && cr > 5000)
+      GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-banner gov-banner-crit\"><span class=\"gov-banner-tag\">22A</span>GLOBAL_SIGNAL_SUPPRESSION_CRITICAL — acceptance ‰ below 10 on high volume.</div>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "</div>\n");
+
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"sigf-dead\"><h3 class=\"gov-h3\">8. Dead signal zones</h3>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<p>First starvation month index (1–12): <b>" + IntegerToString(t.dead_zone_month_first_1_12) + "</b> · ring depth: <b>" + IntegerToString(t.life.count) + "</b></p>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<table id=\"tblSigHeatM\" data-sort-col=\"-1\" data-sort-dir=\"asc\"><thead><tr><th onclick=\"govSort('tblSigHeatM',0)\">Month</th><th onclick=\"govSort('tblSigHeatM',1)\">CONS</th><th onclick=\"govSort('tblSigHeatM',2)\">QUAL</th><th onclick=\"govSort('tblSigHeatM',3)\">TREND</th></tr></thead><tbody>\n");
    for(int m = 0; m < GOV_SIG_FORENSICS_MONTH_BUCKETS_V1; m++) {
@@ -136,7 +165,7 @@ inline void GovSigForensicsHtmlV1_AppendSection(const SGovSignalForensicsTelemet
    }
    GovRuntimeVisualHtmlW1_AppendLf(html, "</tbody></table></div>\n");
 
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"sigf-starve\"><h3 class=\"gov-h3\">8. Signal starvation alerts</h3>\n");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-subsec\" id=\"sigf-starve\"><h3 class=\"gov-h3\">9. Signal starvation alerts</h3>\n");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-banner-stack\">\n");
    if(t.starvation_alerts > 0)
       GovRuntimeVisualHtmlW1_AppendLf(html, "<div class=\"gov-banner gov-banner-warn\"><span class=\"gov-banner-tag\">STARVE</span>Signal starvation episodes (counter): " + IntegerToString(t.starvation_alerts) + "</div>\n");

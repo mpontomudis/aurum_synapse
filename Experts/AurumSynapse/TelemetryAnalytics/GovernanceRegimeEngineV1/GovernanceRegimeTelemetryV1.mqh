@@ -11,6 +11,7 @@
 inline ulong GovRegimeTelV1_HashSnapshot(const SGovRegimeTelemetryV1 &t)
 {
    const string s = IntegerToString((long)t.ts) + "|" + IntegerToString((int)t.regime) + "|" +
+                    IntegerToString((int)t.secondary_regime) + "|" + IntegerToString(t.regime_confidence_permille) + "|" +
                     DoubleToString(t.atr, 6) + "|" + DoubleToString(t.trend_strength, 6) + "|" +
                     DoubleToString(t.volatility_score, 6) + "|" + DoubleToString(t.confidence, 6) + "|" +
                     IntegerToString(t.breakout_detected ? 1 : 0) + "|" + IntegerToString(t.sweep_detected ? 1 : 0);
@@ -31,6 +32,8 @@ inline void GovRegimeTelV1_Push(SGovRegimeRuntimeStoreV1 &s,
 
 inline void GovRegimeTelV1_BuildRow(const datetime ts,
                                      const EAurumMarketRegime reg,
+                                     const EAurumMarketRegime sec_reg,
+                                     const int conf_pm,
                                      const MarketState &st,
                                      const SGovRegimeFeaturesV1 &f,
                                      const double conf,
@@ -38,6 +41,8 @@ inline void GovRegimeTelV1_BuildRow(const datetime ts,
 {
    out.ts = ts;
    out.regime = reg;
+   out.secondary_regime = (int)sec_reg;
+   out.regime_confidence_permille = conf_pm;
    out.atr = st.atr14;
    out.trend_strength = f.directional_persist;
    out.volatility_score = f.expansion_score;

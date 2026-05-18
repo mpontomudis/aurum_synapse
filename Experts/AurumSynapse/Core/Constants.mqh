@@ -99,6 +99,21 @@ enum ENUM_SIGNAL_REJECT_REASON {
     SIGNAL_REJECT_MARKET_UPDATE_FAIL   = 11
 };
 
+// Phase 22A — deterministic CanTrade() deny classification (telemetry / dossier only)
+enum ENUM_AS_CANTRADE_DENY_DETAIL_V1 {
+    AS_CT_DENY_NONE = 0,
+    AS_CT_DENY_COOLDOWN,
+    AS_CT_DENY_DAILY_LOSS,
+    AS_CT_DENY_DD_LOCK,
+    AS_CT_DENY_CONSEC,
+    AS_CT_DENY_MARGIN_LOCK,
+    AS_CT_DENY_POSITION_LIMIT,
+    AS_CT_DENY_EQUITY_GUARD,
+    AS_CT_DENY_UNKNOWN
+};
+
+#define AS_CT_DENY_DETAIL_COUNT_V1 9
+
 // Lot sizing methods (MT5 Inputs list order: Automatic, Fixed, Fixed per Balance)
 // NOTE: numeric values changed vs older builds — re-save .set: 0=Automatic, 1=Fixed, 2=Fixed per Balance
 enum ENUM_LOT_METHOD {

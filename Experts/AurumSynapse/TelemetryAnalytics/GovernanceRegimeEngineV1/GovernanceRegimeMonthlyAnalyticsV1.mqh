@@ -39,15 +39,19 @@ inline void GovRegimeMoV1_OnTradeClose(SGovRegimeRuntimeStoreV1 &s, const dateti
 
 inline int GovRegimeMoV1_DominantRegimeSlot(const SGovRegimeRuntimeStoreV1 &s, const int month_idx)
 {
-   int best = 0;
+   int best = 1;
    ulong mx = 0;
-   for(int r = 0; r < GOV_REGIME_AURUM_SLOT_COUNT_V1; r++) {
+   for(int r = 1; r < GOV_REGIME_AURUM_SLOT_COUNT_V1; r++) {
       if(s.month_regime_hits[month_idx][r] > mx) {
          mx = s.month_regime_hits[month_idx][r];
          best = r;
       }
    }
-   return best;
+   if(mx > 0)
+      return best;
+   if(s.month_regime_hits[month_idx][0] > 0)
+      return 0;
+   return 0;
 }
 
 #endif // __AURUM_GOV_REGIME_MONTHLY_ANALYTICS_V1_MQH__

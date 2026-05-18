@@ -32,6 +32,7 @@
 #include "TelemetryAnalytics/GovernanceRegimeEngineV1/GovernanceRegimeIntegrationV1.mqh"
 #include "TelemetryAnalytics/GovernanceDynamicRecoveryEngineV1/GovernanceDynamicRecoveryEngineV1.mqh"
 #include "TelemetryAnalytics/GovernanceEcologyEngineV1/GovernanceEcologyIntegrationV1.mqh"
+#include "TelemetryAnalytics/GovernanceRestrictionForensicsV1/GovernanceRestrictionForensicsIntegrationV1.mqh"
 #ifdef AURUM_TELEMETRY_T1
 #include "Telemetry/TelemetryCollector.mqh"
 #endif
@@ -135,6 +136,7 @@ input bool InpGovRegimeCsvAppend = false;                     // Append regime t
 input bool InpGovPhase22aRegimeCalibration = true;            // Phase 22A: regime-aware min consensus / min quality (telemetry governance only)
 input bool InpGovDynRecoveryEnable = true;                    // Phase 22B: adaptive DD recovery (cooldown shave + staged caps; never bypasses hard DD)
 input bool InpGovPhase23EcologyEnable = true;                // Phase 23: adaptive strategy ecology (participation governance; no auto-optimize)
+input bool InpGovPhase235RestrictionForensics = true;       // Phase 23.5: restriction forensics & execution starvation telemetry (observe-only)
 
 //+------------------------------------------------------------------+
 //| GLOBAL OBJECTS                                                   |
@@ -357,6 +359,7 @@ string Aurum_FmtDossierInputSnapshotV1(void) {
     o += "InpGovPhase22aRegimeCalibration=" + IntegerToString((int)InpGovPhase22aRegimeCalibration) + "\n";
     o += "InpGovDynRecoveryEnable=" + IntegerToString((int)InpGovDynRecoveryEnable) + "\n";
     o += "InpGovPhase23EcologyEnable=" + IntegerToString((int)InpGovPhase23EcologyEnable) + "\n";
+    o += "InpGovPhase235RestrictionForensics=" + IntegerToString((int)InpGovPhase235RestrictionForensics) + "\n";
     return o;
 }
 
@@ -487,6 +490,8 @@ int OnInit() {
     GovDynRecV1_Configure(InpGovDynRecoveryEnable, InpMaxEquityDD);
     GovEcolIntV1_ModuleInit();
     GovEcolIntV1_Configure(InpGovPhase23EcologyEnable);
+    GovRfIntV1_ModuleInit();
+    GovRfIntV1_Configure(InpGovPhase235RestrictionForensics);
     Logger::Info("RiskManager initialized - Circuit breakers active");
     
     //--- Create and initialize Trade Manager
@@ -563,6 +568,7 @@ void OnDeinit(const int reason) {
     TelemetryT2_Deinit();
 #endif
     GovRuntimeObsIntV1_EmitEndOfRun(_Symbol, reason);
+    GovRfIntV1_FlushPersistence();
     GovEcolIntV1_FlushPersistence();
     if(InpGovVisualHtmlExport && MQLInfoInteger(MQL_TESTER) == 0) {
         Aurum_FillDossierColdSnapshotV1();
@@ -619,6 +625,7 @@ void OnTick() {
     //--- NEW BAR detected - proceed with processing
     g_lastBarTime = currentBarTime;
     g_totalTrades++;  // Count bars processed
+    GovRfIntV1_OnNewBarOpened();
 
     // GOV_SHADOW_SAFE_POINT — bar-open boundary: cheapest place for per-bar shadow snapshot (no I/O).
     
@@ -637,6 +644,7 @@ void OnTick() {
         TradeDiag_Blocked("MarketUpdateFail", _Symbol, 0.0, diagOpenCount);
         Logger::Warning("[ERROR] MarketAnalyzer update failed");
         GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_MARKET_UPDATE_FAIL, true, (int)AS_CT_DENY_NONE);
+        GovRfIntV1_OnEarlyReject(currentBarTime, (int)GOV_RF_STAGE_EARLY_MARKET_V1, SIGNAL_REJECT_MARKET_UPDATE_FAIL, (int)AS_CT_DENY_NONE, -1);
         break;
     }
     
@@ -647,6 +655,7 @@ void OnTick() {
     const double gov_reg_spread_pts = (SymbolInfoDouble(_Symbol, SYMBOL_ASK) - SymbolInfoDouble(_Symbol, SYMBOL_BID)) / _Point;
     GovRegimeIntV1_OnBar(marketState, gov_reg_rates, gov_reg_n, currentBarTime, gov_reg_spread_pts,
                         (InpGovRegimeCsvAppend && MQLInfoInteger(MQL_TESTER) != 0));
+    GovRfIntV1_OnRegimeSlotTick(GovRegimeDsV1_RegimeSlot(g_gov_regime_store_v1.current_regime));
     GovRegimeIntV1_ApplyLegacyOverlay(marketState);
     Aurum_LogH2MarketStateIfChanged(marketState, currentBarTime);
 
@@ -659,8 +668,11 @@ void OnTick() {
     if(gov_dd_shave_sec > 0)
         g_riskManager.ApplyCooldownDecaySeconds(gov_dd_shave_sec);
 
+    GovRfIntV1_OnDdProbe(g_riskManager.GetEquityDD(), AccountInfoDouble(ACCOUNT_BALANCE), AccountInfoDouble(ACCOUNT_EQUITY));
+
     //--- 2. Risk authorization (execution) — observability may continue in Phase 3D lab mode
     const bool execRiskAllows = g_riskManager.CanTrade();
+    GovRfIntV1_OnRiskSample(execRiskAllows, g_riskManager.GetLastCanTradeDenyDetail());
     // GOV_RUNTIME_INJECTION_CANDIDATE — align native CanTrade() with shadow execution_allowed (observe-only v1).
     if(!execRiskAllows) {
         Aurum_LogH2GateOncePerDay(currentBarTime, SIGNAL_REJECT_RISK_HALT);
@@ -672,6 +684,8 @@ void OnTick() {
         if(!InpInvestigationSignalObservability) {
             GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_RISK_HALT, true,
                                                g_riskManager.GetLastCanTradeDenyDetail());
+            GovRfIntV1_OnEarlyReject(currentBarTime, (int)GOV_RF_STAGE_RISK_EARLY_V1, SIGNAL_REJECT_RISK_HALT,
+                                    g_riskManager.GetLastCanTradeDenyDetail(), -1);
             UpdatePanel();
             break;
         }
@@ -686,6 +700,7 @@ void OnTick() {
             Print("[BLOCKED] Time Filter");
         }
         GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_TIME_FILTER, true, (int)AS_CT_DENY_NONE);
+        GovRfIntV1_OnEarlyReject(currentBarTime, (int)GOV_RF_STAGE_TIME_V1, SIGNAL_REJECT_TIME_FILTER, (int)AS_CT_DENY_NONE, -1);
         UpdatePanel();
         break;
     }
@@ -699,11 +714,13 @@ void OnTick() {
             PrintFormat("[BLOCKED] Spread too wide: %.1f > %d", spread, InpMaxSpreadPoints);
         }
         GovSigForensicsV1_NotifyEarlyReject(currentBarTime, REGIME_CALM, SIGNAL_REJECT_SPREAD, true, (int)AS_CT_DENY_NONE);
+        GovRfIntV1_OnEarlyReject(currentBarTime, (int)GOV_RF_STAGE_SPREAD_V1, SIGNAL_REJECT_SPREAD, (int)AS_CT_DENY_NONE, -1);
         UpdatePanel();
         break;
     }
     
     GovSigForensicsV1_NotifyPipelineOpen(currentBarTime);
+    GovRfIntV1_OnPipelineOpened();
     GovRegimeIntV1_OnPipelineSignal(currentBarTime);
 
     // GOV_SHADOW_SAFE_POINT — pre-signal: regime / state available for lightweight shadow capture.
@@ -728,7 +745,23 @@ void OnTick() {
     
     GovDynRecV1_ApplyStrategyPreservation(signals);
     GovRegimeIntV1_OnStrategySignalCooccurrence(signals);
+    int preEcoBuy = 0, preEcoSell = 0;
+    for(int ei = 0; ei < 8; ei++) {
+        if(signals[ei].signal == SIGNAL_BUY)
+            preEcoBuy++;
+        else if(signals[ei].signal == SIGNAL_SELL)
+            preEcoSell++;
+    }
     GovEcolIntV1_OnBarSignals(currentBarTime, marketState, signals);
+    int postEcoBuy = 0, postEcoSell = 0;
+    for(int ej = 0; ej < 8; ej++) {
+        if(signals[ej].signal == SIGNAL_BUY)
+            postEcoBuy++;
+        else if(signals[ej].signal == SIGNAL_SELL)
+            postEcoSell++;
+    }
+    GovRfIntV1_OnEcologyFootprint(preEcoBuy, preEcoSell, postEcoBuy, postEcoSell,
+                                 g_gov_ecology_v1.last_bar_suppress_clears, g_gov_ecology_v1.last_bar_throttle_events, signals);
     
     int activeCount = g_strategyManager.GetActiveStrategyCount();
     
@@ -761,14 +794,17 @@ void OnTick() {
     }
     
     //--- 7. Calculate consensus (Phase 22A optional regime-aware vote threshold)
+    const int effMinConsensusRf = GovRegimeIntV1_EffectiveMinConsensus(InpMinConsensus, InpGovPhase22aRegimeCalibration);
     const int saveMinConsensus = g_signalManager.GetMinConsensus();
-    g_signalManager.SetMinConsensus(GovRegimeIntV1_EffectiveMinConsensus(InpMinConsensus, InpGovPhase22aRegimeCalibration));
+    g_signalManager.SetMinConsensus(effMinConsensusRf);
     ENUM_SIGNAL consensus = g_signalManager.GetConsensusSignal(signals, 8);
     g_signalManager.SetMinConsensus(saveMinConsensus);
     double consensusStrength = g_signalManager.GetConsensusStrength();
     double agreementPct = g_signalManager.GetAgreementPercentage();
     const int buyVotes = g_signalManager.GetBuyCount();
     const int sellVotes = g_signalManager.GetSellCount();
+    GovRfIntV1_OnConsensusEval(currentBarTime, InpMinConsensus, effMinConsensusRf, buyVotes, sellVotes, consensus,
+                              g_gov_ecology_v1.last_bar_suppress_clears);
 #ifdef AURUM_TELEMETRY_T1
     double qualityScoreForTelemetry = TELEMETRY_NULL_DOUBLE;
 #endif
@@ -799,6 +835,7 @@ void OnTick() {
             Aurum_LogH2RejectIfChanged(currentBarTime, SIGNAL_REJECT_QUALITY_LOW, consensus, qualityScore, buyVotes, sellVotes);
             TradeDiag_Blocked("QualityScoreLow", _Symbol, 0.0, diagOpenCount);
             GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, SIGNAL_REJECT_QUALITY_LOW, false);
+            GovRfIntV1_OnPipelineReject(currentBarTime, (int)GOV_RF_STAGE_QUALITY_V1, SIGNAL_REJECT_QUALITY_LOW, (int)AS_CT_DENY_NONE, domStrat);
         } else {
             ENUM_SIGNAL_REJECT_REASON reqFail = SIGNAL_REJECT_NONE;
             if(!CheckQualityRequirements(marketState, consensus, reqFail)) {
@@ -807,6 +844,7 @@ void OnTick() {
                     PrintFormat("[BLOCKED] Quality requirements not met (%s)", Aurum_RejectReasonText(reqFail));
                 }
                 GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, reqFail, false);
+                GovRfIntV1_OnPipelineReject(currentBarTime, (int)GOV_RF_STAGE_REQUIREMENT_V1, reqFail, (int)AS_CT_DENY_NONE, domStrat);
             } else {
                 if(!execRiskAllows) {
                     // Phase 3D: consensus/quality path visible for research; no new orders while risk halt
@@ -814,6 +852,9 @@ void OnTick() {
                     TradeDiag_Blocked("RiskManager", _Symbol, 0.0, diagOpenCount);
                     GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, SIGNAL_REJECT_RISK_HALT, false,
                                                    g_riskManager.GetLastCanTradeDenyDetail());
+                    GovRfIntV1_OnPipelineReject(currentBarTime, (int)GOV_RF_STAGE_RISK_HALT_V1, SIGNAL_REJECT_RISK_HALT,
+                                               g_riskManager.GetLastCanTradeDenyDetail(), domStrat);
+                    GovRfIntV1_OnLostToRiskHalt();
                 } else {
                     ENUM_SIGNAL_REJECT_REASON posFail = SIGNAL_REJECT_NONE;
                     if(!CanOpenNewPosition(posFail)) {
@@ -825,12 +866,14 @@ void OnTick() {
                                 Print("[BLOCKED] Max consecutive losses reached");
                         }
                         GovSigForensicsV1_RecordReject(currentBarTime, marketState, domStrat, consensus, (int)qualityScore, posFail, false);
+                        GovRfIntV1_OnPipelineReject(currentBarTime, (int)GOV_RF_STAGE_POSITION_V1, posFail, (int)AS_CT_DENY_NONE, domStrat);
                     } else {
                         if(!h2Diag) {
                             Print("[TRADE] *** EXECUTING TRADE ***");
                         }
                         // GOV_RUNTIME_INJECTION_CANDIDATE — pre-order shadow snapshot hook (must never block native path).
                         GovSigForensicsV1_RecordAccepted(currentBarTime, marketState, domStrat, consensus, (int)qualityScore);
+                        GovRfIntV1_OnExecAllowedWaterfall(currentBarTime, domStrat);
                         ExecuteTrade(consensus, marketState, qualityScore, signals);
                     }
                 }
@@ -1297,6 +1340,7 @@ void ExecuteTrade(ENUM_SIGNAL signal, const MarketState &state, double qualitySc
         GovRegimeIntV1_RecordOpenOrder(_Symbol, ticket);
         GovSigForensicsV1_RecordExecuted((datetime)TimeCurrent(), state,
                                        GovSigForensicsV1_DominantStratSlot8(gov_rtag_signals[0], gov_rtag_signals[1], gov_rtag_signals[2], gov_rtag_signals[3], gov_rtag_signals[4], gov_rtag_signals[5], gov_rtag_signals[6], gov_rtag_signals[7], signal), signal, (int)qualityScore);
+        GovRfIntV1_OnTradeOpened();
 
         Logger::LogTrade(ticket, "OPEN_" + EnumToString(signal), lot, price, sl, tp, (int)qualityScore);
         Logger::Info("Trade #" + IntegerToString(g_totalTrades) + " opened successfully");
@@ -1433,6 +1477,7 @@ double OnTester() {
         Aurum_FillDossierColdSnapshotV1();
         GovRuntimeVisualIntV1_ExportGovernanceReportV1(_Symbol, _Period, InpGovVisualSidecars, InpGovDossierCompareExport);
     }
+    GovRfIntV1_FlushPersistence();
     GovEcolIntV1_FlushPersistence();
     return 0.0;
 }

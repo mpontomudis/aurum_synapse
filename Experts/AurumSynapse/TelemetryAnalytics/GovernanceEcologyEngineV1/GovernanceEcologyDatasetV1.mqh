@@ -66,6 +66,9 @@ struct SGovEcologyStoreV1
    ulong    strat_bars_by_sess[GOV_ECO_STRAT_COUNT_V1][GOV_ECO_SESSION_COUNT_V1];
    ulong    strat_bars_by_vol[GOV_ECO_STRAT_COUNT_V1][GOV_ECO_VOL_BUCKET_V1];
 
+   int      last_bar_suppress_clears;
+   int      last_bar_throttle_events;
+
    SGovEcologyStratSliceV1 s[GOV_ECO_STRAT_COUNT_V1];
 };
 
@@ -106,6 +109,8 @@ inline void GovEcoDsV1_Init(SGovEcologyStoreV1 &st)
    st.ecology_entropy_score_pm = 0;
    st.ecology_balance_score_pm = 0;
    st.monoculture_warn = 0;
+   st.last_bar_suppress_clears = 0;
+   st.last_bar_throttle_events = 0;
    for(int i = 0; i < GOV_ECO_STRAT_COUNT_V1; i++) {
       for(int j = 0; j < GOV_ECO_STRAT_COUNT_V1; j++)
          st.cooccur[i][j] = 0;

@@ -39,6 +39,7 @@
 #include "../GovernanceRegimeEngineV1/GovernanceRegimeHtmlV1.mqh"
 #include "../GovernanceDynamicRecoveryEngineV1/GovernanceDynamicRecoveryHtmlV1.mqh"
 #include "../GovernanceEcologyEngineV1/GovernanceEcologyHtmlV1.mqh"
+#include "../GovernanceRestrictionForensicsV1/GovernanceRestrictionForensicsIntegrationV1.mqh"
 
 inline string GovBacktestDossierV1_RegimeDossierLabel(const int regime)
 {
@@ -257,7 +258,7 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    GovRuntimeVisualHtmlW1_AppendLf(html, "<nav id=\"toc\" class=\"gov-toc\"><a href=\"#intel-s1\">01 Exec</a><a href=\"#intel-s2\">02 Meta</a><a href=\"#intel-s3\">03 Config</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s4\">04 Perf</a><a href=\"#intel-s5\">05 Ecology</a><a href=\"#intel-s6\">06 Consensus</a><a href=\"#intel-s7\">07 Signal</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s8\">08 Regime</a><a href=\"#intel-s9\">09 Session</a><a href=\"#intel-s10\">10 Lineage</a><a href=\"#intel-s11\">11 Breach</a>");
-   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s12\">12 Toxicity</a><a href=\"#intel-s21\">21 SigForensics</a><a href=\"#intel-s22\">22 Regime</a><a href=\"#intel-s22b\">22B Recovery</a><a href=\"#intel-s22d\">22D Confidence</a><a href=\"#intel-s23\">23 Strat Ecology</a><a href=\"#intel-s13\">13 Forensics</a><a href=\"#intel-s14\">14 Reco</a><a href=\"#intel-s15\">15 Verdict</a>");
+   GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-s12\">12 Toxicity</a><a href=\"#intel-s21\">21 SigForensics</a><a href=\"#intel-s22\">22 Regime</a><a href=\"#intel-s22b\">22B Recovery</a><a href=\"#intel-s22d\">22D Confidence</a><a href=\"#intel-s23\">23 Strat Ecology</a><a href=\"#intel-s24\">24 Restriction Forensics</a><a href=\"#intel-s13\">13 Forensics</a><a href=\"#intel-s14\">14 Reco</a><a href=\"#intel-s15\">15 Verdict</a>");
    GovRuntimeVisualHtmlW1_AppendLf(html, "<a href=\"#intel-attest\">Attest</a></nav>\n<main class=\"gov-main\">\n");
 
    GovIntelDossierV1_AppendExecutive(sym, tf, meta_ts, mod, lin, sum, ex, tsx, html);
@@ -313,6 +314,7 @@ inline void GovBacktestDossierV1_BuildFullHtml(const string sym,
    GovDynRecHtmlV1_AppendSection22b(html);
    GovDynRecHtmlV1_AppendSection22d(html);
    GovEcoHtmlV1_AppendSection23(html);
+   GovRfIntV1_AppendDossierSection24(html);
 
    GovIntelDossierV1_AppendForensicsShellOpen(html);
    GovBacktestRecoveryV1_AppendSection(lin, html);

@@ -16,13 +16,20 @@
 
 inline void GovEcoEngV1_ApplyParticipation(SGovEcologyStoreV1 &st, SignalResult &signals[])
 {
+   st.last_bar_suppress_clears = 0;
+   st.last_bar_throttle_events = 0;
    for(int i = 0; i < GOV_ECO_STRAT_COUNT_V1; i++) {
+      const ENUM_SIGNAL prev_sig = signals[i].signal;
       const int ps = st.s[i].part_state;
       if(ps == GOV_ECO_ST_SUPPRESSED || ps == GOV_ECO_ST_TOXIC || ps == GOV_ECO_ST_DISABLED_BY_REGIME) {
+         if(prev_sig != SIGNAL_NONE)
+            st.last_bar_suppress_clears++;
          signals[i].signal = SIGNAL_NONE;
          signals[i].strength = 0.0;
          st.s[i].bars_suppression++;
       } else if(ps == GOV_ECO_ST_THROTTLED) {
+         if(prev_sig != SIGNAL_NONE)
+            st.last_bar_throttle_events++;
          signals[i].strength *= 0.55;
          signals[i].weight *= 0.65;
          st.s[i].bars_throttled++;

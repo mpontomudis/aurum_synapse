@@ -15,6 +15,7 @@
 #include "../TelemetryAnalytics/GovernanceSignalForensicsV1/GovernanceSignalForensicsV1.mqh"
 #include "../TelemetryAnalytics/GovernanceRegimeEngineV1/GovernanceRegimeIntegrationV1.mqh"
 #include "../TelemetryAnalytics/GovernanceEcologyEngineV1/GovernanceEcologyIntegrationV1.mqh"
+#include "../TelemetryAnalytics/GovernanceRestrictionForensicsV1/GovernanceRestrictionForensicsIntegrationV1.mqh"
 
 SGovCmpRunRecordV1 g_gov_test_cmp_baseline_row_v1;
 
@@ -5271,6 +5272,8 @@ bool GovTest_Phase23EcologyV1(void) {
     sig[0].signal = SIGNAL_BUY;
     sig[0].strength = 0.5;
     GovEcolIntV1_OnBarSignals(TimeCurrent(), ms, sig);
+    if(g_gov_ecology_v1.last_bar_suppress_clears < 1)
+        return Fail("eco23_suppress_ctr");
     if(sig[2].signal != SIGNAL_NONE)
         return Fail("eco23_mr_disabled_expansion");
     if(sig[0].signal == SIGNAL_NONE)
@@ -5278,6 +5281,35 @@ bool GovTest_Phase23EcologyV1(void) {
     if(g_gov_ecology_v1.cooccur[0][2] < 1UL)
         return Fail("eco23_cooccur");
     GovEcolIntV1_Configure(false);
+    return true;
+}
+
+bool GovTest_Phase235RestrictionForensicsV1(void) {
+    GovRfIntV1_ModuleInit();
+    GovRfIntV1_Configure(true);
+    const datetime ts = (datetime)1600000000;
+    GovRfIntV1_OnEarlyReject(ts, (int)GOV_RF_STAGE_SPREAD_V1, SIGNAL_REJECT_SPREAD, (int)AS_CT_DENY_NONE, -1);
+    GovRfEngV1_OnRiskSample(g_gov_rf_v1, false, (int)AS_CT_DENY_DD_LOCK);
+    GovRfEngV1_OnRiskSample(g_gov_rf_v1, true, (int)AS_CT_DENY_NONE);
+    GovRfIntV1_OnConsensusEval(ts, 3, 4, 1, 0, SIGNAL_NONE, 2);
+    GovRfEngV1_OnDdProbe(g_gov_rf_v1, 10.0, 10000.0, 9950.0);
+    SignalResult sig235[8];
+    for(int i = 0; i < 8; i++) {
+        sig235[i].signal = SIGNAL_NONE;
+        sig235[i].strength = 0.0;
+        sig235[i].weight = 1.0;
+    }
+    GovRfIntV1_OnEcologyFootprint(2, 0, 0, 0, 3, 4, sig235);
+    if(g_gov_rf_v1.ring_count < 1)
+        return Fail("rf235_ring");
+    if(g_gov_rf_v1.risk_deny_dd_lock < 1)
+        return Fail("rf235_dd_lock");
+    if(g_gov_rf_v1.consensus_failures < 1)
+        return Fail("rf235_cons");
+    if(g_gov_rf_v1.ecology_suppress_clears_total < 3)
+        return Fail("rf235_eco");
+    GovRfIntV1_FlushPersistence();
+    GovRfIntV1_Configure(false);
     return true;
 }
 
@@ -5822,6 +5854,8 @@ int OnInit() {
     if(!GovTestHarnessV1_ReplayLoopShell(6))
         return INIT_FAILED;
     if(!GovTest_Phase23EcologyV1())
+        return INIT_FAILED;
+    if(!GovTest_Phase235RestrictionForensicsV1())
         return INIT_FAILED;
 
     Print("[GOV_SM_V1_TEST] STATUS=PASS suite=governance_kernel_v1");
